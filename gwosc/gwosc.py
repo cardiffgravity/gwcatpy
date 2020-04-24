@@ -140,9 +140,9 @@ def getGWTC1(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,
             dirOut='../../data/'
         if fileOut==None:
             if triggers:
-                fileOut='gwosc-marginal.json'
+                fileOut='gwtc1-marginal.json'
             else:
-                fileOut='gwosc.json'
+                fileOut='gwtc1.json'
         if verbose: print('Exporting to {}'.format(os.path.join(dirOut,fileOut)))
         fOut=open(os.path.join(dirOut,fileOut),'w')
         json.dump(gwoscdata,fOut,indent=indent)
@@ -151,5 +151,5 @@ def getGWTC1(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,
     
 def getGwosc(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False):
     print('***WARNING getGwosc replaced by getGWTC1***')
-    out=getGWTC1(url=url,verbose=verbose,export-export,dirOut=dirOut,fileOut=fileOut,indent=indent,triggers=triggers)
+    out=getGWTC1(url=url,verbose=verbose,export=export,dirOut=dirOut,fileOut=fileOut,indent=indent,triggers=triggers)
     return(out)
