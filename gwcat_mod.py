@@ -258,9 +258,9 @@ class GWCat(object):
             self.meta['manual'][m]=manIn['meta'][m]
         return
 
-    def importGwosc(self,gwoscIn,verbose=False):
+    def importGWTC1(self,gwtc1In,verbose=False):
         print('*** Importing GWOSC...')
-        catData=gwosc.gwosc2cat(gwoscIn,verbose=verbose)
+        catData=gwosc.gwtc1_to_cat(gwtc1In,verbose=verbose)
         for g in catData['data']:
             # get old metadata
             dmeta={}
@@ -282,11 +282,16 @@ class GWCat(object):
         self.evTimes = self.getTimestamps()
         self.json2dataframe(verbose=verbose)
         if not 'gwosc' in self.meta:
-            self.meta['gwosc']={}
-        for m in gwoscIn['meta']:
-            self.meta['gwosc'][m]=gwoscIn['meta'][m]
+            self.meta['GWTC-1']={}
+        for m in gwtc1In['meta']:
+            self.meta['GWTC-1'][m]=gwtc1In['meta'][m]
         return
-
+    
+    # backwards compatibility
+    def importGwosc(self,gwoscIn,verbose=False):
+        print('***WARNING: importGwosc replaced by importGWTC1***')
+        self.importGWTC1(gwoscIn,verbose=verbose)
+    
     def importGraceDB(self,gracedbIn,verbose=False,forceUpdate=False):
         print('*** Importing GraceDB...')
         evTimes=self.getTimestamps()

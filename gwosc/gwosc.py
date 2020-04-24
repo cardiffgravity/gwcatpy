@@ -16,7 +16,7 @@ def paramConv(param):
     return(pOut)
 
 
-def gwosc2cat(gwosc,verbose=False):
+def gwtc1_to_cat(gwosc,verbose=False):
     # convert dataset from gwosc to gwcat format
     if 'data' in gwosc:
         gwoscIn=gwosc['data']
@@ -113,7 +113,12 @@ def gwosc2cat(gwosc,verbose=False):
         catOut[e]['meta']={'retrieved':Time.now().isot,'src':url}
     return({'data':catOut,'links':linksOut})
 
-def getGwosc(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False):
+def gwosc2cat(gwosc,verbose=False):
+    print('***WARNING gwosc2cat replaced by gwtc1_to_cat***')
+    out=gwct1_to_cat(gwosc,verbose=False)
+    return(out)
+    
+def getGWTC1(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False):
     import requests
     import json
     if url=='':
@@ -143,3 +148,8 @@ def getGwosc(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,
         json.dump(gwoscdata,fOut,indent=indent)
         fOut.close()
     return gwoscdata
+    
+def getGwosc(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False):
+    print('***WARNING getGwosc replaced by getGWTC1***')
+    out=getGWTC1(url=url,verbose=verbose,export-export,dirOut=dirOut,fileOut=fileOut,indent=indent,triggers=triggers)
+    return(out)
