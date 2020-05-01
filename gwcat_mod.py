@@ -436,8 +436,10 @@ class GWCat(object):
         #     print('WARNING: Problem calculating area for {}'.format(ev))
             # return
 
-    def rel2abs(self,rel):
-        return(self.baseurl + rel)
+    def rel2abs(self,rel,url=None):
+        if url==None:
+            url=self.baseurl
+        return(url + rel)
 
     def plotMapPngs(self,overwrite=False,verbose=False):
         print('*** Updating plots...')
@@ -575,7 +577,7 @@ class GWCat(object):
                     plotloc.makeTiles(gravFile,verbose=verbose)
         return
 
-    def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False):
+    def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False,tilesurl=None):
 
         gravDir=os.path.join(self.dataDir,'gravoscope')
         for ev in self.events:
@@ -596,7 +598,7 @@ class GWCat(object):
             else:
                 if verbose: print('adding tiles link for Gravoscope tileset for {}'.format(ev))
                 gravLinktxt='Gravoscope tileset'
-                self.addLink(ev,{'url':self.rel2abs(tilesDir),'text':gravLinktxt,
+                self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
                     'type':'gravoscope-tiles','created':fitsCreated.isot})
             tileFile=os.path.join(gravDir,'{}-tiles/{}.png'.format(ev,'ttrtttttt'[0:maxres+1]))
             if not os.path.isfile(tileFile):
@@ -615,8 +617,8 @@ class GWCat(object):
                 map=plotloc.read_map(filename,verbose=verbose)
                 plotloc.makeTiles(map,dirOut=tilesDir,maxres=maxres,verbose=verbose)
                 gravLinktxt='Gravoscope tileset'
-                self.addLink(ev,{'url':self.rel2abs(tilesDir),'text':gravLinktxt,
-                    'type':'gravoscope-tiles','created':Time.now().isot})
+                self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
+                    'type':'gravoscope-tiles','created':fitsCreated.isot})
         return
 
     def getLink(self,ev,srchtxt,srchtype='type',verbose=False):
