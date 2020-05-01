@@ -601,7 +601,7 @@ class GWCat(object):
                     plotloc.makeTiles(gravFile,verbose=verbose)
         return
 
-    def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False,tilesurl=None):
+    def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False,tilesurl=None,updateLink=True):
 
         gravDir=os.path.join(self.dataDir,'gravoscope')
         for ev in self.events:
@@ -610,20 +610,39 @@ class GWCat(object):
                 os.mkdir(tilesDir)
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
             filename=self.status[ev]['mapurllocal']
+            gravLinktxt='Gravoscope tileset'
             tilesLinktype='gravoscope-tiles'
             tilesLink=self.getLink(ev,tilesLinktype,srchtype='type')
+            tilesLinkIdx=self.getLink(ev,tilesLinktype,srchtype='type',retIdx=True)
             updateTiles=False
             if len(tilesLink)>0:
+                # link is present
                 if 'created' in tilesLink[0]:
                     timeTiles=Time(tilesLink[0]['created'])
                     if timeTiles.gps < fitsCreated.gps-1:
+                        # tiles are older than map
                         if verbose: print('tiles for {} exists, but are older than map. {} < {}; {} < {}'.format(ev,timeTiles,fitsCreated,timeTiles.gps,fitsCreated.gps))
                         updateTiles=True
+                    else:
+                        # tiles are newer than map
+                        if verbose: print('tiles for {} exists, and are newer than map. {} > {}; {} > {}'.format(ev,timeTiles,fitsCreated,timeTiles.gps,fitsCreated.gps))
+                else:
+                    # no created date. remove link and regenerate tiles (just in case)
+                    if verbose: print('No created date for tiles link for {}. Regenerating all tiles'.format(ev))
+                    self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
+                        'type':'gravoscope-tiles','created':fitsCreated.isot})
+                    updateTiles=True
+                if updateLink:
+                    # update link (but don't necessarily recreate tiles)
+                    if verbose: print('replacing old link for Gravoscope tileset for {}'.format(ev))
+                    self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
+                        'type':'gravoscope-tiles','created':fitsCreated.isot})
             else:
+                # no link. Need to add link and regenerate tiles
                 if verbose: print('adding tiles link for Gravoscope tileset for {}'.format(ev))
-                gravLinktxt='Gravoscope tileset'
                 self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
                     'type':'gravoscope-tiles','created':fitsCreated.isot})
+                updateTiles=True
             tileFile=os.path.join(gravDir,'{}-tiles/{}.png'.format(ev,'ttrtttttt'[0:maxres+1]))
             if not os.path.isfile(tileFile):
                 if verbose: print('file {} does not exist'.format(tileFile))
@@ -640,23 +659,26 @@ class GWCat(object):
                 if verbose:print('plotting Gravoscope files for {}: {}'.format(ev,tilesDir))
                 map=plotloc.read_map(filename,verbose=verbose)
                 plotloc.makeTiles(map,dirOut=tilesDir,maxres=maxres,verbose=verbose)
-                gravLinktxt='Gravoscope tileset'
+                if verbose: print('adding tiles link for Gravoscope tileset for {}'.format(ev))
                 self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
                     'type':'gravoscope-tiles','created':fitsCreated.isot})
         return
 
-    def getLink(self,ev,srchtxt,srchtype='type',verbose=False):
+    def getLink(self,ev,srchtxt,srchtype='type',verbose=False,retIdx=False):
         if not ev in self.links:
             return []
         lOut=[]
         if len (self.links[ev])>0:
             for ol in range(len(self.links[ev])):
                 if self.links[ev][ol][srchtype]==srchtxt:
-                    lOut.append(self.links[ev][ol])
+                    if retIdx:
+                        lOut.append(ol)
+                    else:
+                        lOut.append(self.links[ev][ol])
         if verbose:
             print('found {} links for {} with {}=={}'.format(len(lOut),ev,srchtype,srchtxt))
         return(lOut)
-
+    
     def addLink(self,ev,link,replace=True,verbose=False):
         # replace: replace link with same type and text. (N.B. Always replace open-data links)
         if not ev in self.links:
