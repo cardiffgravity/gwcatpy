@@ -132,6 +132,7 @@ class GWCat(object):
         if baseurl[-1]!='/':baseurl=baseurl+'/'
         self.baseurl=baseurl
         self.statusFile=os.path.join(dataDir,statusFile)
+        
         self.getStatus()
         eventsIn=json.load(open(fileIn))
         self.data=eventsIn['data']
@@ -146,7 +147,7 @@ class GWCat(object):
         else:
             self.meta={'created':Time.now().isot}
         return
-
+    
     def getEvent(self,ev):
         if ev in self.data:
             return(self.data[ev])
@@ -163,7 +164,12 @@ class GWCat(object):
         return(evTimes)
 
     def getStatus(self):
-        self.status=json.load(open(self.statusFile))
+        try:
+            self.status=json.load(open(self.statusFile))
+        except:
+            print("Initialising status")
+            self.status={}
+            json.dump(self.status,open(self.statusFile,'w'))
         return
 
     def saveStatus(self):
@@ -211,7 +217,7 @@ class GWCat(object):
         if len(lmap)>1 and verbose:
             print('Warning: more than one skymap link for {}'.format(ev))
         if len(lmap)==0 and verbose:
-            print('Warning: more than one skymap link for {}'.format(ev))
+            print('Warning: no skymap link for {}'.format(ev))
         if len(lmap)>0:
             l=lmap[0]
             tmpDir=os.path.join(self.dataDir,'tmp')
@@ -258,9 +264,9 @@ class GWCat(object):
             self.meta['manual'][m]=manIn['meta'][m]
         return
 
-    def importGwosc(self,gwoscIn,verbose=False):
+    def importGWTC1(self,gwtc1In,verbose=False):
         print('*** Importing GWOSC...')
-        catData=gwosc.gwosc2cat(gwoscIn,verbose=verbose)
+        catData=gwosc.gwtc1_to_cat(gwtc1In,verbose=verbose)
         for g in catData['data']:
             # get old metadata
             dmeta={}
@@ -281,12 +287,17 @@ class GWCat(object):
             self.updateStatus(ev,verbose=verbose,desc='Map src')
         self.evTimes = self.getTimestamps()
         self.json2dataframe(verbose=verbose)
-        if not 'gwosc' in self.meta:
-            self.meta['gwosc']={}
-        for m in gwoscIn['meta']:
-            self.meta['gwosc'][m]=gwoscIn['meta'][m]
+        if not 'GWTC-1' in self.meta:
+            self.meta['GWTC-1']={}
+        for m in gwtc1In['meta']:
+            self.meta['GWTC-1'][m]=gwtc1In['meta'][m]
         return
-
+    
+    # backwards compatibility
+    def importGwosc(self,gwoscIn,verbose=False):
+        print('***WARNING: importGwosc replaced by importGWTC1***')
+        self.importGWTC1(gwoscIn,verbose=verbose)
+    
     def importGraceDB(self,gracedbIn,verbose=False,forceUpdate=False):
         print('*** Importing GraceDB...')
         evTimes=self.getTimestamps()
@@ -441,8 +452,17 @@ class GWCat(object):
             url=self.baseurl
         return(url + rel)
 
-    def plotMapPngs(self,overwrite=False,verbose=False):
+    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None):
         print('*** Updating plots...')
+        if os.path.exists(logFile):
+            os.remove(logFile)
+            print('Removing log file: {}'.format(logFile))
+        else:
+            print("Log file doesn't exist: {}".format(logFile))
+        if logFile:
+            print('Writing Maps log to: {}'.format(logFile))
+            logF=open(logFile,'a')
+
         pngDir=os.path.join(self.dataDir,'png')
         gravDir=os.path.join(self.dataDir,'gravoscope')
         dataDir=os.path.join(self.dataDir,'fits')
@@ -490,6 +510,8 @@ class GWCat(object):
                 except:
                     print('ERROR: problem reading map at {}'.format(filename))
                     return
+                if logFile:
+                    logF.write(ev+'\n')
                 for p in plots:
                     pp=plots[p]
                     if p=='cartzoom':
@@ -555,6 +577,8 @@ class GWCat(object):
                 self.addLink(ev,{'url':self.rel2abs(gravFile),'text':gravLinktxt,
                     'type':'skymap-plain','created':Time.now().isot})
 
+        if logFile:
+            logF.close()
         return
 
     def makeGravoscopeTilesPerl(self,overwrite=False,verbose=False):

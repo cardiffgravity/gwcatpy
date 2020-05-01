@@ -105,7 +105,7 @@ def gracedb2cat(gdb,force=True,verbose=False,knownEvents={},forceUpdate=False):
 
     return {'data':catOut,'links':linksOut}
 
-def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,knownEvents={},forceUpdate=False,datelim=999):
+def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,knownEvents={},forceUpdate=False,datelim=999,logFile=None):
 
     service_url = 'https://gracedb.ligo.org/api/'
     if verbose: print('Retrieving GraceDB data from {}'.format(service_url))
@@ -118,6 +118,16 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
     # and chirp mass to a dictionary.
     results = {}
     links = {}
+
+    if os.path.exists(logFile):
+        os.remove(logFile)
+        print('Removing log file: {}'.format(logFile))
+    else:
+        print("Log file doesn't exist: {}".format(logFile))
+    if logFile:
+        print('Writing GraceDB log to: {}'.format(logFile))
+        logF=open(logFile,'a')
+
     for event in events:
         sid = event['superevent_id']
         tEvent=Time(event['t_0'],format='gps')
@@ -182,6 +192,9 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
 
                 evOut['xmlfile']=[os.path.split(thisvoe_url)[-1],thisvoe_url]
                 if update:
+                    if logFile:
+                        logF.write(sid+'\n')
+
                     # parse XML
                     xml={}
                     if verbose: print('  parsing {}'.format(evOut['xmlfile'][0]))
@@ -216,7 +229,8 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
 
         results[sid]=evOut
 
-
+    if logFile:
+        logF.close()
     if verbose: print('Retrieved data for {} events'.format(len(results)))
 
     cat={'meta':{'retrieved':Time.now().isot,'src':service_url},'data':results}
