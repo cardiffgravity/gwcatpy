@@ -1343,3 +1343,17 @@ class GWCat(object):
         self.dataframe2json(datain,unitsin,linksin,mode=mode,verbose=verbose)
 
         return()
+
+    def addrefs(self,verbose=False):
+        fileIn=os.path.join(self.dataDir,'refs.json')
+        try:
+            refsIn=json.load(open(fileIn))
+        except:
+            if verbose:
+                print('error loading {}',format(fileIn))
+                return
+        for ev in refsIn:
+            if ev in self.events:
+                for r in refsIn[ev]:
+                    self.addLink(ev,r,verbose=verbose)
+        return
