@@ -291,7 +291,7 @@ class GWCat(object):
                     continue
                 sigfig=self.datadict[p]['sigfig']
                 if isinstance(newParam,Number) and not isinstance(newParam,bool):
-                    newParam=self.setPrec(newParam,sigfig+3)
+                    newParam=self.setPrec(newParam,sigfig+extraprec)
                 else:
                     if 'best' in newParam:
                         if isinstance(newParam['best'],Number) and not isinstance(newParam['best'],bool):
