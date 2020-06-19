@@ -4,6 +4,7 @@ import numpy as np
 from astropy.time import Time
 from astropy.io import fits
 import healpy as hp
+import h5py
 import os
 import requests
 from . import gwosc
@@ -122,6 +123,12 @@ def getManual(loc='',verbose=True,export=False,
         fOut.close()
     return mandata
 
+def setPrec(v,prec):
+    if prec:
+        precstr='{:.'+'{}'.format(prec)+'g}'
+    else:precstr='{}'
+    return float(precstr.format(v))
+
 class GWCat(object):
     def __init__(self,fileIn='../data/events.json',statusFile='status.json',
         dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',verbose=False):
@@ -153,6 +160,12 @@ class GWCat(object):
             return(self.data[ev])
         else:
             return
+    def getParameter(self,ev,param):
+        pOut=None
+        if ev in self.data:
+            if param in self.data[ev]:
+                pOut=self.data[ev][param]
+        return(pOut)
     def getTimestamps(self):
         evTimes={}
         for ev in self.data:
@@ -264,8 +277,91 @@ class GWCat(object):
             self.meta['manual'][m]=manIn['meta'][m]
         return
 
+    def setPrecision(self,extraprec=3,verbose=False):
+        from numbers import Number
+        for ev in self.data:
+            for p in self.data[ev]:
+                newParam=self.getParameter(ev,p)
+                try:
+                    assert(newParam)
+                    assert p in self.datadict
+                    assert 'sigfig' in self.datadict[p]
+                except:
+                    # if verbose:print('unable to set precision for {}[{}]'.format(ev,p))
+                    continue
+                sigfig=self.datadict[p]['sigfig']
+                if isinstance(newParam,Number) and not isinstance(newParam,bool):
+                    newParam=self.setPrec(newParam,sigfig+3)
+                else:
+                    if 'best' in newParam:
+                        if isinstance(newParam['best'],Number) and not isinstance(newParam['best'],bool):
+                            newbest=setPrec(newParam['best'],sigfig+extraprec)
+                            if verbose:
+                                if self.getParameter(ev,p)['best']!=newbest:
+                                    print('Set precision {}[{}][best]: {}->{}'.format(ev,p,self.getParameter(ev,p)['best'],newbest))
+                            newParam['best']=newbest
+                    if 'err' in newParam:
+                        if newbest!=0:
+                            bprec=np.floor(np.log10(np.abs(newbest)))+1-(sigfig+extraprec)
+                        else:
+                            bprec=sigfig
+                        mult=10**(-bprec)
+                        newlow=np.round(newParam['err'][0]*mult)/mult
+                        newhigh=np.round(newParam['err'][1]*mult)/mult
+                        newerr=[newlow,newhigh]
+                        # for e in range(len(newParam['err'])):
+                        #     newerr.append(setPrec(newParam['err'][e],sigfig))
+                        if verbose:
+                            if self.getParameter(ev,p)['err'][0]!=newlow or self.getParameter(ev,p)['err'][1]!=newhigh:
+                                print('Set precision {}[{}][err]: {}->{}'.format(ev,p,self.getParameter(ev,p)['err'],newerr))
+                        newParam['err']=newerr
+                    if 'lower' in newParam:
+                        newParam['lower']=setPrec(newParam['lower'],sigfig+extraprec)
+                    if 'upper' in newParam:
+                        newParam['upper']=setPrec(newParam['upper'],sigfig+extraprec)
+                self.data[ev][p]=newParam
+        return
+        
+    def matchGraceDB(self,verbose=False):
+        gdblist=[]
+        gpslist=[]
+        for ev in self.data:
+            name=self.data[ev]['name']
+            gps=self.getParameter(ev,'GPS')                
+            if name[0]=='S':
+                try:
+                    gps['best']
+                except:
+                    continue
+                gdblist.append(name)
+                gpslist.append(gps['best'])
+        gpslist=np.array(gpslist)
+        gdblist=np.array(gdblist)
+        for ev in self.data:
+            if self.data[ev]['name'][0]=='S':
+                # is a gracedb event itself
+                continue
+            tgps=self.getParameter(ev,'GPS')
+            try:
+                tgps['best']
+            except:
+                continue
+            idx=np.where(np.abs(gpslist-tgps['best'])<1)[0]
+            if len(idx)>0:
+                matchname=gdblist[idx][0]
+                if verbose:
+                    print('matching {} with {}'.format(ev,matchname))
+                self.data[ev]['meta']['gracedb']=matchname
+                maplink=self.getLink(ev,'skymap-fits')
+                mapgdb=self.getLink(matchname,'skymap-fits')
+                if len(maplink)==0 and len(mapgdb)>0:
+                    if verbose:print('copying GraceDB map link from {} to {}: {}'.format(matchname,ev,mapgdb[0]))
+                    self.addLink(ev,mapgdb[0],verbose=verbose)
+            
+        return
+        
     def importGWTC1(self,gwtc1In,verbose=False):
-        print('*** Importing GWOSC...')
+        print('*** Importing GWTC-1...')
         catData=gwosc.gwtc1_to_cat(gwtc1In,verbose=verbose)
         for g in catData['data']:
             # get old metadata
@@ -281,7 +377,7 @@ class GWCat(object):
             if g in catData['links']:
                 for l in catData['links'][g]:
                     self.addLink(g,l,verbose=verbose)
-            self.updateStatus(g,verbose=verbose,desc='Gwosc import')
+            self.updateStatus(g,verbose=verbose,desc='GWTC-1 import')
         for ev in catData['links']:
             self.updateMapSrc(ev,verbose=True)
             self.updateStatus(ev,verbose=verbose,desc='Map src')
@@ -339,6 +435,164 @@ class GWCat(object):
             self.meta['graceDB'][m]=gracedbIn['meta'][m]
         return
 
+    def updateH5Src(self,ev,verbose=False):
+        ldat=self.getLink(ev,'data-file',verbose=verbose)
+        if len(ldat)>1 and verbose:
+            print('Warning: more than one data file link for {}'.format(ev))
+        if len(ldat)==0 and verbose:
+            print('Warning: no data file link for {}'.format(ev))
+        if len(ldat)>0:
+            l=ldat[0]
+            tmpDir=os.path.join(self.dataDir,'tmp')
+            try:
+                # self.data[ev]['meta']['h5datesrc']=Time.now().isot
+                self.data[ev]['meta']['h5urlsrc']=l['url']
+                if verbose:print('Data file loaded for {}:'.format(ev),l['url'])
+            except:
+                print('WARNING: Error loading data file for {}:'.format(ev),l)
+
+    def updateH5(self,verbose=False,forceUpdate=False):
+        print('*** Updating data files...')
+        for ev in self.data:
+            # compare map creation dates
+            try:
+                h5datelocal=Time(self.status[ev]['h5datelocal'])
+                h5datesrc=Time(self.status[ev]['h5datesrc'])
+                h5file=self.status[ev]['h5urllocal']
+                if not os.path.isfile(h5file):
+                    if verbose:print('No file. Need to re-download data file for {}'.format(ev))
+                    updateH5=True
+                elif h5datesrc>h5datelocal:
+                    if verbose:
+                        print('Newer file. Need to re-download data file for {}'.format(ev))
+                        print('src',h5datesrc)
+                        print('local',h5datelocal)
+                    updateH5=True
+                else:
+                    if verbose:print('Older file. Do not need to re-download data file for {}'.format(ev))
+                    updateH5=False
+            except:
+                updateH5=True
+            if updateH5 or forceUpdate:
+                if verbose:print('Updating data file for {}'.format(ev))
+                stat=self.getH5(ev,verbose=verbose)
+                if stat!=0:
+                    self.getH5Local(ev,verbose=verbose)
+            else:
+                if verbose:print('No data file update required for {}'.format(ev))
+            
+            try:
+                h5File=self.status[ev]['h5urllocal']
+            except:
+                if verbose:print('no local data file for {}'.format(ev))
+                continue
+            newparams=self.getH5Params(ev,verbose=verbose)
+            for p in newparams:
+                if verbose:
+                    if (p in self.data[ev]):
+                        print('replacing {}[{}]:{}->{}'.format(ev,p,self.data[ev][p],newparams[p]))
+                else:
+                    print('adding {}[{}]:{}'.format(ev,p,newparams[p]))
+                self.data[ev][p]=newparams[p]
+        return
+
+    def getH5(self,ev,verbose=False):
+        import h5py
+        h5Dir=os.path.join(self.dataDir,'h5')
+        if not os.path.exists(h5Dir):
+            # create directory
+            os.mkdir(h5Dir)
+            print('Created directory: {}'.format(h5Dir))
+        ldat=self.getLink(ev,'data-file')
+        if len(ldat)==0:
+            if verbose: print('ERROR: no data file link for {}',format(ev))
+            return
+        if len(ldat)>1:
+            if verbose: print('WARNING: more than one data file link for {}',format(ev))
+        url=ldat[0]['url']
+        if verbose: print('Downloading data file for {} from {}'.format(ev,url))
+        srcfile=os.path.split(url)[-1]
+        h5req=requests.get(url)
+        if h5req.ok:
+            try:
+                # if url.find('.fits.gz')>=0:
+                #     fileext='fits.gz'
+                # else:
+                #     fileext='fits'
+                if srcfile.find(ev)<0:
+                    h5File=os.path.join(h5Dir,'{}_{}'.format(ev,srcfile))
+                else:
+                    h5File=os.path.join(h5Dir,srcfile)
+                fOut=open(h5File,'wb')
+                fOut.write(h5req.content)
+                fOut.close()
+                if verbose:print('Data file downloaded')
+            except:
+                print('ERROR: Problem loading/saving data file:',h5req.status_code)
+                return h5req
+            try:
+                testread=h5py.File(h5File)
+                if verbose: print('Valid h5 file for {}: {}'.format(ev,h5File))
+                # hdr=fits.getheader(fitsFile,ext=1)
+                stat={'h5urllocal':h5File,
+                    'h5datelocal':Time.now().isot,
+                    'h5datesrc':Time.now().isot}
+                self.data[ev]['meta']['h5urllocal']=h5File
+                self.data[ev]['meta']['h5datelocal']=Time.now().isot
+                self.data[ev]['meta']['h5datesrc']=Time.now().isot
+                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='data file local')
+            except:
+                print('ERROR: Problem opening data file for {}:'.format(ev),h5File)
+                return(-1)
+            # self.calcAreas(ev,verbose=verbose)
+        else:
+            print('ERROR: Problem loading h5 file:',h5req.status_code)
+            return h5req.status_code
+        return(0)
+        
+    def getH5Local(self,ev,verbose=False):
+        ldat=self.getLink(ev,'data-local')
+        if len(ldat)==0:
+            if verbose: print('ERROR: no local data file link for {}',format(ev))
+            return
+        if len(ldat)>1:
+            if verbose: print('WARNING: more than one local data file link for {}',format(ev))
+        h5File=ldat[0]['url']
+        if verbose: print('Using local h5 file for {}: {}'.format(ev,h5File))
+        try:
+            testread=h5py.File(h5File)
+            if verbose: print('Valid h5 file for {}: {}'.format(ev,h5File))
+            # hdr=fits.getheader(fitsFile,ext=1)
+            stat={'h5urllocal':h5File,
+                'h5datelocal':Time.now().isot,
+                'h5datesrc':Time.now().isot}
+            self.data[ev]['meta']['h5urllocal']=h5File
+            self.data[ev]['meta']['h5datelocal']=Time.now().isot
+            self.data[ev]['meta']['h5datesrc']=Time.now().isot
+            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='data file local')
+        except:
+            print('ERROR: Problem opening local data file for {}:'.format(ev),h5File)
+            return
+        return
+        
+    def getH5Params(self,ev,verbose=False):
+        if verbose:print('getting H5 parameters for {}'.format(ev))
+        m1check=self.getParameter(ev,'M1')
+        if not (m1check):
+            if verbose:print('no M1 parameter for {}'.format(ev))
+            return({})
+        else:
+            m1check=m1check['best']
+            if verbose:print('M1 parameter for {}:'.format(ev),m1check)
+        try:
+            h5File=self.status[ev]['h5urllocal']
+        except:
+            if verbose:print('no local data file for {}'.format(ev))
+            return({})
+        newparams=gwosc.geth5params(h5File,pcheck={'M1':m1check},datadict=self.datadict,verbose=verbose)
+        if verbose:print(newparams)
+        return(newparams)
+        
     def removeCandidates(self,verbose=False):
         remCands=[]
         for ev in self.data:
@@ -434,18 +688,19 @@ class GWCat(object):
         return hdr
 
     def calcAreas(self,ev,verbose=False):
-        fitsFile=self.status[ev]['mapurllocal']
-        map=plotloc.read_map(fitsFile,verbose=verbose)
+        if 'mapurllocal' in self.status[ev]:
+            fitsFile=self.status[ev]['mapurllocal']
+            map=plotloc.read_map(fitsFile,verbose=verbose)
 
-        totmap,a90=plotloc.getProbMap(map,prob=0.9,verbose=verbose)
-        a50=plotloc.getArea(totmap,0.5,verbose=verbose)
-        self.data[ev]['deltaOmega']={'best':round(a90)}
-        self.data[ev]['skyarea(50)']={'best':round(a50)}
-        if verbose:print('90% area',round(a90),'50% area',round(a50))
-        return(a90)
-        # except:
-        #     print('WARNING: Problem calculating area for {}'.format(ev))
-            # return
+            totmap,a90=plotloc.getProbMap(map,prob=0.9,verbose=verbose)
+            a50=plotloc.getArea(totmap,0.5,verbose=verbose)
+            self.data[ev]['deltaOmega']={'best':round(a90)}
+            self.data[ev]['skyarea(50)']={'best':round(a50)}
+            if verbose:print('90% area',round(a90),'50% area',round(a50))
+            return(a90)
+            # except:
+            #     print('WARNING: Problem calculating area for {}'.format(ev))
+                # return
 
     def rel2abs(self,rel,url=None):
         if url==None:
@@ -678,7 +933,7 @@ class GWCat(object):
         if verbose:
             print('found {} links for {} with {}=={}'.format(len(lOut),ev,srchtype,srchtxt))
         return(lOut)
-    
+
     def addLink(self,ev,link,replace=True,verbose=False):
         # replace: replace link with same type and text. (N.B. Always replace open-data links)
         if not ev in self.links:
