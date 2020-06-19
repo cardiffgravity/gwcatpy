@@ -726,6 +726,10 @@ class GWCat(object):
         if not os.path.exists(gravDir):
             os.mkdir(gravDir)
         for ev in self.events:
+            if not 'mapurlsrc' in self.status[ev]:
+                if verbose:
+                    print('no mapurlsrc for {}'.format(ev))
+                continue
             if not 'mapurllocal' in self.status[ev]:
                 self.getMap(ev,verbose=verbose)
             filename=self.status[ev]['mapurllocal']
