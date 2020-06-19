@@ -228,7 +228,7 @@ def getGwoscO3(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=
     if verbose: print('Retrieved data for {} events'.format(len(o3data['data'])))
     return o3data
 
-def geth5params(h5File,pcheck={},datadict={},verbose=False):
+def geth5params(h5File,pcheck={},approx='',datadict={},verbose=False):
     from pesummary.gw.file.read import read
     paramsOut={}
     conv={'mass_1_source':'M1',
@@ -261,25 +261,29 @@ def geth5params(h5File,pcheck={},datadict={},verbose=False):
         if verbose:print('error reading data file: {}'.format(h5File))
         return({})
     if verbose:print('getting parameters from data file: {}'.format(h5File))
-    approximants=h5dat.labels
-    if len(pcheck)>0:
-        pcheckl=next(iter(pcheck.keys()))
-        pcheckv=pcheck[pcheckl]
-        if verbose:print('finding best match for {}={}'.format(pcheckl,pcheckv))
-        for c in conv:
-            if conv[c]==pcheckl:
-                pcheckl=c
-        diff=[]
-        for a in approximants:
-            checka=h5dat.samples_dict[a].median[pcheckl][0]
-            diffa=np.abs(checka-pcheckv)
-            diff.append(diffa)
-            if verbose:print(a,diffa)
-        thisapprox=approximants[np.argmin(diff)]
+    if (approx):
+        thisapprox=approx
+        if verbose:print('using approximant {}'.format(thisapprox))
     else:
-        # just use first
-        thisapprox=approximants[0]
-    if verbose:print('using approximant {}'.format(thisapprox))
+        approximants=h5dat.labels
+        if len(pcheck)>0:
+            pcheckl=next(iter(pcheck.keys()))
+            pcheckv=pcheck[pcheckl]
+            if verbose:print('finding best match for {}={}'.format(pcheckl,pcheckv))
+            for c in conv:
+                if conv[c]==pcheckl:
+                    pcheckl=c
+            diff=[]
+            for a in approximants:
+                checka=h5dat.samples_dict[a].median[pcheckl][0]
+                diffa=np.abs(checka-pcheckv)
+                diff.append(diffa)
+                if verbose:print(a,diffa)
+            thisapprox=approximants[np.argmin(diff)]
+        else:
+            # just use first approximant
+            thisapprox=approximants[0]
+        if verbose:print('using approximant {}'.format(thisapprox))
     
     # get more params
     h5samp=h5dat.samples_dict[thisapprox]

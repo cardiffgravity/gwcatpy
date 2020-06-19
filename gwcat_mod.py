@@ -578,6 +578,7 @@ class GWCat(object):
     def getH5Params(self,ev,verbose=False):
         if verbose:print('getting H5 parameters for {}'.format(ev))
         m1check=self.getParameter(ev,'M1')
+        approx=self.getParameter(ev,'approximant')
         if not (m1check):
             if verbose:print('no M1 parameter for {}'.format(ev))
             return({})
@@ -589,7 +590,7 @@ class GWCat(object):
         except:
             if verbose:print('no local data file for {}'.format(ev))
             return({})
-        newparams=gwosc.geth5params(h5File,pcheck={'M1':m1check},datadict=self.datadict,verbose=verbose)
+        newparams=gwosc.geth5params(h5File,pcheck={'M1':m1check},approx=approx,datadict=self.datadict,verbose=verbose)
         if verbose:print(newparams)
         return(newparams)
         
