@@ -12,6 +12,7 @@ from . import gracedb
 from . import plotloc
 from astropy.table import Table
 import astropy_healpix as ah
+from pycbc.waveform import get_td_waveform
 # import gracedb
 # import gwosc
 
@@ -1358,3 +1359,124 @@ class GWCat(object):
                 for r in refsIn[ev]:
                     self.addLink(ev,r,verbose=verbose)
         return
+    
+    def makeWaveforms(self,verbose=False):
+        print('*** Updating waveforms...')
+        # if os.path.exists(logFile):
+        #     os.remove(logFile)
+        #     print('Removing log file: {}'.format(logFile))
+        # else:
+        #     print("Log file doesn't exist: {}".format(logFile))
+        # if logFile:
+        #     print('Writing Maps log to: {}'.format(logFile))
+        #     logF=open(logFile,'a')
+
+        wfDir=os.path.join(self.dataDir,'waveforms')
+        wfDirFull=os.path.join(self.dataDir,'waveforms-full')
+        if not os.path.exists(wfDir):
+            os.mkdir(wfDir)
+        if not os.path.exists(wfDirFull):
+            os.mkdir(wfDirFull)
+        wfs={}
+        for ev in self.events:
+            # check parameters exist
+            M1Param=self.getParameter(ev,'M1')
+            M2Param=self.getParameter(ev,'M2')
+            MchirpParam=self.getParameter(ev,'Mchirp')
+            DLParam=self.getParameter(ev,'DL')
+            params={}
+            if 'best' in M1Param:
+                params["M1"]=M1Param['best']
+            if 'best' in M2Param['M2']:
+                params["M2"]=M2Param['best']
+            if 'best' in MchirpParam:
+                params["Mchirp"]=MchirpParam['best']
+            if 'best' in DLParam:
+                params["DL"]=DLParam['best']
+            # check parameters exist
+            if ('M1' in params)and('M2' in params)and('Mchirp' in params)and('DL' in params):
+                if verbose:print('all parameters exist')
+                wfs[ev]=params
+            else:
+                if verbose:print('not all parameters exist [M1,M2,Mchirp,DL]:',M1Param,M2Param,MchirpParam,DLParam)
+                continue
+
+        linktxt='Simulated waveform (compressed)'
+        for ev in wfs:
+            wfs[ev]['wfFile']=os.path.join(wfDir,'waveform_{}_compress.txt'.format(ev))
+            wfs[ev]['wfFileFull']=os.path.join(wfDirFull,'waveform_{}_full.txt'.format(ev))
+            wfs[ev]['exists']=os.path.isfile(wfs[ev]['wfFile'])
+            if not wfs[ev]['exists'] or overwrite:
+                wfs[ev]['update']=True
+            else:
+                wfs[ev]['update']=False
+            link=self.getLink(ev,linktxt,srchtype='text')
+            if len(link)>0:
+                if 'created' in link[0]:
+                    if link[0]['created']<fitsCreated:
+                        wfs[ev]['update']=True
+        for ev in wfs:
+            if not wfs['update']:
+                
+            m1=wfs[ev]['M1']
+            m2=wfs[ev]['M2']
+            mch=wfs[ev]['Mchirp']
+            K0=2.7e17 #Msun^5 s^-5
+
+            if m1+m2 > 67:
+                tres=1.0/4096
+                f_lower=20
+            elif m1+m2>5:
+                tres=1.0/4096
+                f_lower=25
+            else:
+                tres=1.0/8192
+                f_lower=30
+            wfs[ev]['fmin']=f_lower
+            f30=30
+            f25=25
+            tmin=K0**(1./3.) * mch**(-5./3.) * f_lower**(-8./3.)
+            t30=K0**(1./3.) * mch**(-5./3.) * f30**(-8./3.)
+            t25=K0**(1./3.) * mch**(-5./3.) * f25**(-8./3.)
+            fitparam=[0.0029658 , 0.96112625]
+            tmin=tmin*(mch*fitparam[0] + fitparam[1])
+            t30=t30*(mch*fitparam[0] + fitparam[1])
+            t25=t25*(mch*fitparam[0] + fitparam[1])
+            wfs[ev]['tmin']=tmin
+            wfs[ev]['t25']=t25
+            wfs[ev]['t30']=t30
+            print('processing {}: {} + {} [{}] ({} MPc) at 1/{}s resolution from {}Hz [{:.2f}s from {:.2f}Hz]'.format(ev,wfs[ev]['M1'],wfs[ev]['M2'],wfs[ev]['Mchirp'],wfs[ev]['DL'],1./tres,f_lower,t30,f30))
+            # print(' t(30Hz) = {:.2}'.format(tmin))
+
+            hp,hc = get_td_waveform(approximant="SEOBNRv3_opt_rk4",
+                             mass1=wfs[ev]['M1'],
+                             mass2=wfs[ev]['M2'],
+                             delta_t=tres,
+                             f_lower=f_lower,
+                             distance=wfs[ev]['DL'])
+            t= hp.sample_times
+            wfs[ev]['data']=Table({'t':t,'hp':hp,'hc':hc})
+            # wfs[d]['data'].write('full-data/waveform_{}.csv'.format(d),format='ascii.csv',overwrite=True)
+            if verbose:print('  produced {:.2f}s from {:.2f}Hz'.format(-t[0],f_lower))
+            
+            # crop waveform
+            cropt=np.where(wfs[ev]['data']['t']>-wfs[ev]['t25'])[0]
+            hp=wfs[ev]['data']['hp'][cropt]
+            t=wfs[ev]['data']['t'][cropt]
+            if verbose:
+                print('{} t30={:.2f}: {} samples'.format(d,wfs[ev]['t30'],len(t)))
+                print('compressing {}'.format(ev))
+            hp2=np.where(np.abs(hp)<1e-24,0,hp*1e23)
+            wfs[ev]['data-comp']=Table([t,hp2],names=['t','strain*1e23'])
+            for l in range(len(wfs[ev]['data2'])):
+                wfs[ev]['datacomp'][l]['t']=round(wfs[eval]['data2'][l]['t'],5)
+                wfs[ev]['datacomp'][l]['strain*1e23']=round(wfs[ev]['datacomp'][l]['strain*1e23'],1)
+            wfs[ev]['data2'].write(wfs[ev]['wfFile'],format='ascii.basic',delimiter=" ",overwrite=True)
+            
+            # add link:
+            if verbose: print('adding waveform link for {}'.format(ev))
+            link={'url':self.rel2abs(wfs[ev]['wfFile']),'text':linktxt,
+                'type':'waveform-compressed','created':Time.now().isot,'offset':float('{:.5f}'.format(-wfs[ev]['t30']),'tmerge':0.0}
+            self.addLink(ev,link)
+
+    return
