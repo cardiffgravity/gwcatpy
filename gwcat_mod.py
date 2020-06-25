@@ -1360,7 +1360,7 @@ class GWCat(object):
                     self.addLink(ev,r,verbose=verbose)
         return
     
-    def makeWaveforms(self,verbose=False):
+    def makeWaveforms(self,verbose=False,overwrite=False):
         print('*** Updating waveforms...')
         # if os.path.exists(logFile):
         #     os.remove(logFile)
@@ -1384,10 +1384,15 @@ class GWCat(object):
             M2Param=self.getParameter(ev,'M2')
             MchirpParam=self.getParameter(ev,'Mchirp')
             DLParam=self.getParameter(ev,'DL')
+            if (M1Param)and(M2Param)and(MchirpParam)and(DLParam):
+                if verbose:print('all parameters exist')
+            else:
+                if verbose:print('not all parameters exist [M1,M2,Mchirp,DL]:',M1Param,M2Param,MchirpParam,DLParam)
+                continue
             params={}
             if 'best' in M1Param:
                 params["M1"]=M1Param['best']
-            if 'best' in M2Param['M2']:
+            if 'best' in M2Param:
                 params["M2"]=M2Param['best']
             if 'best' in MchirpParam:
                 params["Mchirp"]=MchirpParam['best']
@@ -1395,10 +1400,10 @@ class GWCat(object):
                 params["DL"]=DLParam['best']
             # check parameters exist
             if ('M1' in params)and('M2' in params)and('Mchirp' in params)and('DL' in params):
-                if verbose:print('all parameters exist')
+                if verbose:print('all values exist')
                 wfs[ev]=params
             else:
-                if verbose:print('not all parameters exist [M1,M2,Mchirp,DL]:',M1Param,M2Param,MchirpParam,DLParam)
+                if verbose:print('not all parameters exist:',params)
                 continue
 
         linktxt='Simulated waveform (compressed)'
@@ -1416,8 +1421,8 @@ class GWCat(object):
                     if link[0]['created']<fitsCreated:
                         wfs[ev]['update']=True
         for ev in wfs:
-            if not wfs['update']:
-                
+            if not wfs[ev]['update']:
+                continue
             m1=wfs[ev]['M1']
             m2=wfs[ev]['M2']
             mch=wfs[ev]['Mchirp']
@@ -1464,19 +1469,18 @@ class GWCat(object):
             hp=wfs[ev]['data']['hp'][cropt]
             t=wfs[ev]['data']['t'][cropt]
             if verbose:
-                print('{} t30={:.2f}: {} samples'.format(d,wfs[ev]['t30'],len(t)))
+                print('{} t30={:.2f}: {} samples'.format(ev,wfs[ev]['t30'],len(t)))
                 print('compressing {}'.format(ev))
             hp2=np.where(np.abs(hp)<1e-24,0,hp*1e23)
-            wfs[ev]['data-comp']=Table([t,hp2],names=['t','strain*1e23'])
-            for l in range(len(wfs[ev]['data2'])):
-                wfs[ev]['datacomp'][l]['t']=round(wfs[eval]['data2'][l]['t'],5)
+            wfs[ev]['datacomp']=Table([t,hp2],names=['t','strain*1e23'])
+            for l in range(len(wfs[ev]['datacomp'])):
+                wfs[ev]['datacomp'][l]['t']=round(wfs[ev]['datacomp'][l]['t'],5)
                 wfs[ev]['datacomp'][l]['strain*1e23']=round(wfs[ev]['datacomp'][l]['strain*1e23'],1)
-            wfs[ev]['data2'].write(wfs[ev]['wfFile'],format='ascii.basic',delimiter=" ",overwrite=True)
+            wfs[ev]['datacomp'].write(wfs[ev]['wfFile'],format='ascii.basic',delimiter=" ",overwrite=True)
             
             # add link:
             if verbose: print('adding waveform link for {}'.format(ev))
             link={'url':self.rel2abs(wfs[ev]['wfFile']),'text':linktxt,
-                'type':'waveform-compressed','created':Time.now().isot,'offset':float('{:.5f}'.format(-wfs[ev]['t30']),'tmerge':0.0}
+                'type':'waveform-compressed','created':Time.now().isot,'offset':float('{:.5f}'.format(-wfs[ev]['t30'])),'tmerge':0.0}
             self.addLink(ev,link)
-
-    return
+        return
