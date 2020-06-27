@@ -1415,11 +1415,11 @@ class GWCat(object):
                 wfs[ev]['update']=True
             else:
                 wfs[ev]['update']=False
-            link=self.getLink(ev,linktxt,srchtype='text')
-            if len(link)>0:
-                if 'created' in link[0]:
-                    if link[0]['created']<fitsCreated:
-                        wfs[ev]['update']=True
+            # link=self.getLink(ev,linktxt,srchtype='text')
+            # if len(link)>0:
+            #     if 'created' in link[0]:
+            #         if link[0]['created']<fitsCreated:
+            #             wfs[ev]['update']=True
         for ev in wfs:
             if not wfs[ev]['update']:
                 continue
