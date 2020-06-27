@@ -740,7 +740,9 @@ class GWCat(object):
             srcfile=os.path.split(self.status[ev]['mapurlsrc'])[-1]
             ptitle='{} [{}]'.format(ev,srcfile)
             plots={'moll':{'linktxt':'Skymap (Mollweide fullsky)'},
+                'moll_pretty':{'linktxt':'Skymap (Mollweide fullsky, pretty)'},
                 'cartzoom':{'linktxt':'Skymap (Cartesian zoomed)'},
+                'cartzoom_pretty':{'linktxt':'Skymap (Cartesian zoomed, pretty)'},
                 'cart':{'linktxt':'Skymap (Cartesian fullsky)'},
                 'moll_rot':{'linktxt':'Skymap (Mollweide fullsky, rotated)'},
                 'cart_rot':{'linktxt':'Skymap (Cartesian fullsky, rotated)'}
@@ -775,11 +777,35 @@ class GWCat(object):
                     logF.write(ev+'\n')
                 for p in plots:
                     pp=plots[p]
+                    # set defaults
+                    logos=True
+                    credit=True
+                    title='{}'.format(ptitle)
+                    plotbounds=True
+                    plotlabels=True
+                    plotlines=True
+                    linewidth=1
+                    markersize=2
+                    alpha=1
+                    margins=None
+                    notext=False
+                    bgcolor='w'
                     if p=='cartzoom':
                         zoomlim=0.8
                         rotmap=True
                         minzoom=20
                         proj='cart'
+                    elif p=='cartzoom_pretty':
+                        zoomlim=0.8
+                        rotmap=True
+                        minzoom=20
+                        proj='cart'
+                        logos=False
+                        credit=False
+                        notext=True
+                        title=' '
+                        bgcolor='k'
+                        margins=[0,0,0,0]
                     elif p=='cart':
                         zoomlim=None
                         rotmap=False
@@ -790,6 +816,18 @@ class GWCat(object):
                         rotmap=False
                         minzoom=None
                         proj='moll'
+                    elif p=='moll_pretty':
+                        zoomlim=None
+                        rotmap=False
+                        minzoom=None
+                        proj='moll'
+                        logos=False
+                        credit=False
+                        notext=True
+                        plotlines=False
+                        bgcolor='gray'
+                        margins=[0,0,0,0]
+                        title=' '
                     elif p=='moll_rot':
                         zoomlim=None
                         rotmap=True
@@ -807,10 +845,11 @@ class GWCat(object):
                         if verbose:print('plotting {} map to {}'.format(pp['linktxt'],pp['pngFile']))
                         plotloc.makePlot(ev=ev,mapIn=map,dirData=dataDir,
                             proj=proj,plotcont=False,smooth=0,zoomlim=zoomlim,
-                            rotmap=rotmap,minzoom=minzoom,
-                            verbose=verbose,title=ptitle,
+                            rotmap=rotmap,minzoom=minzoom,margins=margins,
+                            verbose=verbose,title=title,notext=notext,cbg=bgcolor,
                             pngOut=pp['pngFile'],thumbOut=pp['thumbFile'],
-                            addCredit=True,addLogos=True)
+                            plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
+                            addCredit=credit,addLogos=logos)
                         # add links
                         self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
                             'type':'skymap-plot','created':Time.now().isot})

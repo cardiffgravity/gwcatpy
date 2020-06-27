@@ -155,14 +155,14 @@ def getConstBounds(fIn=None,verbose=False):
         const[c['id']]={'coord':coords,'ra':ra,'dec':dec}
     return(const)
 
-def plotConstBounds(color='w',alpha=1,verbose=False):
+def plotConstBounds(color='w',alpha=1,verbose=False,lw=1):
     # plot constellation boundaries
     cb=getConstBounds(verbose=verbose)
     for c in cb:
         const=cb[c]
         nra=len(const['ra'])
         for i in range(nra-1):
-            line=hp.projplot(const['ra'][i:i+2],const['dec'][i:i+2],lonlat=True,color=color,linewidth=1,alpha=alpha)
+            line=hp.projplot(const['ra'][i:i+2],const['dec'][i:i+2],lonlat=True,color=color,linewidth=lw,alpha=alpha)
             if len(line)>1:
                 # catch lines that don't plot properly
                 # print(c,i,nra,len(line))
@@ -171,7 +171,7 @@ def plotConstBounds(color='w',alpha=1,verbose=False):
                 xy0=line[1].get_xydata()[0]
                 xy1=line[2].get_xydata()[0]
                 if np.sign(xy0[0])==np.sign(xy1[0]):
-                    plot.plot([xy0[0],xy1[0]],[xy0[1],xy1[1]],color=color,linewidth=1,alpha=alpha)
+                    plot.plot([xy0[0],xy1[0]],[xy0[1],xy1[1]],color=color,linewidth=lw,alpha=alpha)
                 # else:
                 #     print('***')
 
@@ -195,16 +195,16 @@ def getConstLines(fIn=None,verbose=False):
         const[c['id']]={'coord':coords,'ra':ra,'dec':dec}
     return(const)
 
-def plotConstLines(color='y',colorstars='y',alpha=1,plotstars=True,verbose=False):
+def plotConstLines(color='y',colorstars='y',alpha=1,plotstars=True,verbose=False,lw=1,ms=2):
     # plot constellation lines
     cb=getConstLines(verbose=verbose)
     for c in cb:
         const=cb[c]
         # if verbose:print('plotting {}:'.format(c),const['ra'],const['dec'])
         for i in range(len(const['ra'])):
-            hp.projplot(const['ra'][i],const['dec'][i],lonlat=True,color=color,linewidth=1,alpha=alpha)
+            hp.projplot(const['ra'][i],const['dec'][i],lonlat=True,color=color,linewidth=lw,alpha=alpha)
             if plotstars:
-                hp.projplot(const['ra'][i],const['dec'][i],'o',lonlat=True,color=colorstars,markersize=2,alpha=alpha)
+                hp.projplot(const['ra'][i],const['dec'][i],'o',lonlat=True,color=colorstars,markersize=ms,alpha=alpha)
     return
 
 def plotGrid(dRA=45,dDec=30,color='w',alpha=0.5,ls=':'):
@@ -441,7 +441,7 @@ def getContLines(xx,yy,zz,level=0.9,ax=None,verbose=False):
 
     return(raCont,decCont,cont)
 
-def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=None,verbose=False,half_sky=False,zoomrng=None,title=None):
+def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=None,verbose=False,half_sky=False,zoomrng=None,title=None,margins=None,notext=None):
     # plot map based on options specified
     if not cmap:
         cmap=cm.gray
@@ -463,7 +463,7 @@ def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=
     if proj=='cart':
         if zoomrng==None:
             # plot full-sky Cartesian view (rotated to centre if specified)
-            fig=hp.cartview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,fig=fig.number,title=title)
+            fig=hp.cartview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,fig=fig.number,title=title,notext=notext,bgcolor=cbg,margins=margins)
         else:
             # get the centre of the plot averate of the ra and dec limits
             ramean,decmean=getPeak(map,verbose=verbose)
@@ -484,15 +484,18 @@ def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=
 
             # plot Cartesian view centred and zoomed on RA/Dec range
             fig=hp.cartview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=[ramean,decmean],fig=fig.number,
-                lonra=rarng,latra=decrng,title=title)
+                lonra=rarng,latra=decrng,title=title,notext=notext,bgcolor=cbg,margins=margins)
     elif proj=='moll':
         # plot full-sky Mollweide view (rotated to centre if specified)
-        fig=hp.mollview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,fig=fig.number,title=title)
+        fig=hp.mollview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,fig=fig.number,title=title,
+            notext=notext,bgcolor=cbg,margins=margins)
     elif proj=='orth':
         # plot full-sky Mollweide view (rotated to centre if specified)
-        fig=hp.orthview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,half_sky=half_sky,fig=fig.number,title=title)
+        fig=hp.orthview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,half_sky=half_sky,fig=fig.number,title=title,
+        notext=notext,bgcolor=cbg,margins=margins)
     elif proj=='gnom':
-        fig=hp.gnomview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,half_sky=half_sky,fig=fig.number,title=title)
+        fig=hp.gnomview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,half_sky=half_sky,fig=fig.number,title=title,
+        notext=notext,bgcolor=cbg,margins=margins)
     else:
         print('unknown projection:',proj)
     return fig
@@ -631,8 +634,9 @@ def makeTiles(map,dirOut='data/gravoscope/test',cmap=None,vmin=None,vmax=None,
 
 def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoomlim=0.92,rotmap=True,
     half_sky=False,pngOut=None,verbose=False,cbg=None,
-    dirData='data/',minzoom=10,pngSize=3000,thumbOut=None,
-    thumbSize=300,title=None,RAcen=0,grid=False,addCredit=True,addLogos=False):
+    dirData='data/',minzoom=10,pngSize=3000,thumbOut=None,margins=None,
+    thumbSize=300,title=None,RAcen=0,grid=False,addCredit=True,addLogos=False,notext=True,
+    plotbounds=True,plotlines=True,plotlabels=True):
     # ev: superevent ID [default='S190412m']
     # mapIn: map to read in (filename [string] or HEALPix map). [Default=None]. If not provided, tries to get event with superevent ID provided in <ev> from GraceDB
     # proj: projection (moll=Mollweide [Default], cart=Cartesian)
@@ -653,6 +657,10 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     # RAcen: Centre RA (Default=0; applies only if rotmap not set)
     # grid: set to plot grid (Default=False)
     # addCredit: set to plot credit line (Default=True)
+    # plotbounds: set to plot constellation boundaries (default=True)
+    # plotlabels: set to plot constellation labels (default=True)
+    # plotlines: set to plot constellation liness (default=True)
+    
     if type(mapIn)==type(None):
         event=getSuperevent(ev,verbose=verbose)
         event['mapfile_local']=fileOut='{}_{}'.format(ev,event['mapfile'][0])
@@ -695,7 +703,7 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
         ralim=[-180,180]
         declim=[-90,90]
     # print (radec95)
-    fig=plotMap(map,cmap=cm.hot,proj=proj,rot=rot,verbose=verbose,zoomrng=radeczoom,title=title,half_sky=half_sky,cbg=cbg)
+    fig=plotMap(map,cmap=cm.hot,proj=proj,rot=rot,verbose=verbose,zoomrng=radeczoom,title=title,half_sky=half_sky,cbg=cbg,notext=notext,margins=margins)
 
     if plotcont:
         cont90=plotContours(maptot,level=0.9,color='w',alpha=0.5,linestyle='-',linewidth=2,verbose=verbose)
@@ -707,9 +715,12 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
 
     if grid:
         plotGrid(dRA=45, dDec=30)
-    plotConstBounds(color=(0.5,0.5,0.5),verbose=verbose,alpha=0.5)
-    plotConstLabs(color=(0,0.7,0.7),verbose=verbose,alpha=alphaLab,maxdist=maxdist,plotcentre=rot)
-    plotConstLines(color=(0,0.7,0.7),verbose=verbose,alpha=0.5)
+    if plotbounds:
+        plotConstBounds(color=(0.5,0.5,0.5),verbose=verbose,alpha=0.5)
+    if plotlabels:
+        plotConstLabs(color=(0,0.7,0.7),verbose=verbose,alpha=alphaLab,maxdist=maxdist,plotcentre=rot)
+    if plotlines:
+        plotConstLines(color=(0,0.7,0.7),verbose=verbose,alpha=0.5)
 
     if addCredit:
         credit='Credit: LIGO-Virgo/Cardiff Uni./C. North'
