@@ -741,6 +741,7 @@ class GWCat(object):
             ptitle='{} [{}]'.format(ev,srcfile)
             plots={'moll':{'linktxt':'Skymap (Mollweide fullsky)'},
                 'moll_pretty':{'linktxt':'Skymap (Mollweide fullsky, pretty)'},
+                'moll_pretty_black':{'linktxt':'Skymap (Mollweide fullsky, pretty black)'},
                 'cartzoom':{'linktxt':'Skymap (Cartesian zoomed)'},
                 'cartzoom_pretty':{'linktxt':'Skymap (Cartesian zoomed, pretty)'},
                 'cart':{'linktxt':'Skymap (Cartesian fullsky)'},
@@ -790,6 +791,7 @@ class GWCat(object):
                     margins=None
                     notext=False
                     bgcolor='w'
+                    border=None
                     if p=='cartzoom':
                         zoomlim=0.8
                         rotmap=True
@@ -825,9 +827,23 @@ class GWCat(object):
                         credit=False
                         notext=True
                         plotlines=False
-                        bgcolor='gray'
+                        bgcolor='w'
                         margins=[0,0,0,0]
                         title=' '
+                        border='black'
+                    elif p=='moll_pretty_black':
+                        zoomlim=None
+                        rotmap=False
+                        minzoom=None
+                        proj='moll'
+                        logos=False
+                        credit=False
+                        notext=True
+                        plotlines=False
+                        bgcolor='black'
+                        margins=[0,0,0,0]
+                        title=' '
+                        border='white'
                     elif p=='moll_rot':
                         zoomlim=None
                         rotmap=True
@@ -849,7 +865,7 @@ class GWCat(object):
                             verbose=verbose,title=title,notext=notext,cbg=bgcolor,
                             pngOut=pp['pngFile'],thumbOut=pp['thumbFile'],
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
-                            addCredit=credit,addLogos=logos)
+                            addCredit=credit,addLogos=logos,border=border)
                         # add links
                         self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
                             'type':'skymap-plot','created':Time.now().isot})

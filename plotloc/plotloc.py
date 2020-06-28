@@ -441,7 +441,7 @@ def getContLines(xx,yy,zz,level=0.9,ax=None,verbose=False):
 
     return(raCont,decCont,cont)
 
-def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=None,verbose=False,half_sky=False,zoomrng=None,title=None,margins=None,notext=None):
+def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=None,verbose=False,half_sky=False,zoomrng=None,title=None,margins=None,notext=None,border=None):
     # plot map based on options specified
     if not cmap:
         cmap=cm.gray
@@ -489,6 +489,10 @@ def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=
         # plot full-sky Mollweide view (rotated to centre if specified)
         fig=hp.mollview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,fig=fig.number,title=title,
             notext=notext,bgcolor=cbg,margins=margins)
+        if border!=None:
+            hp.projplot([-179.9]*1818,np.arange(-90.9,90.90,.1),ls='-',color=border,lw=3,lonlat=True)
+            hp.projplot([179.9]*1818,np.arange(-90.9,90.90,.1),ls='-',color=border,lw=3,lonlat=True)
+        #     hp.projplot([180,180,180,180,180],[90,0,-90,0,90],color=border,lw=5)
     elif proj=='orth':
         # plot full-sky Mollweide view (rotated to centre if specified)
         fig=hp.orthview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,half_sky=half_sky,fig=fig.number,title=title,
@@ -636,7 +640,7 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     half_sky=False,pngOut=None,verbose=False,cbg=None,
     dirData='data/',minzoom=10,pngSize=3000,thumbOut=None,margins=None,
     thumbSize=300,title=None,RAcen=0,grid=False,addCredit=True,addLogos=False,notext=True,
-    plotbounds=True,plotlines=True,plotlabels=True):
+    plotbounds=True,plotlines=True,plotlabels=True,border=None):
     # ev: superevent ID [default='S190412m']
     # mapIn: map to read in (filename [string] or HEALPix map). [Default=None]. If not provided, tries to get event with superevent ID provided in <ev> from GraceDB
     # proj: projection (moll=Mollweide [Default], cart=Cartesian)
@@ -703,7 +707,7 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
         ralim=[-180,180]
         declim=[-90,90]
     # print (radec95)
-    fig=plotMap(map,cmap=cm.hot,proj=proj,rot=rot,verbose=verbose,zoomrng=radeczoom,title=title,half_sky=half_sky,cbg=cbg,notext=notext,margins=margins)
+    fig=plotMap(map,cmap=cm.hot,proj=proj,rot=rot,verbose=verbose,zoomrng=radeczoom,title=title,half_sky=half_sky,cbg=cbg,notext=notext,margins=margins,border=border)
 
     if plotcont:
         cont90=plotContours(maptot,level=0.9,color='w',alpha=0.5,linestyle='-',linewidth=2,verbose=verbose)
