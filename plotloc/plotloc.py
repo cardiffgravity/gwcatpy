@@ -490,9 +490,9 @@ def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=
         fig=hp.mollview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,fig=fig.number,title=title,
             notext=notext,bgcolor=cbg,margins=margins)
         if border!=None:
-            hp.projplot([-179.9]*1818,np.arange(-90.9,90.90,.1),ls='-',color=border,lw=3,lonlat=True)
-            hp.projplot([179.9]*1818,np.arange(-90.9,90.90,.1),ls='-',color=border,lw=3,lonlat=True)
-        #     hp.projplot([180,180,180,180,180],[90,0,-90,0,90],color=border,lw=5)
+            theta= np.arange(0, 181) * np.pi/180 
+            hp.projplot(theta, theta * 0 + 0.9999 * np.pi, ls="-",color=border, lw=3, direct=True)
+            hp.projplot(theta, theta * 0 - np.pi, ls="-",color=border, lw=3, direct=True)
     elif proj=='orth':
         # plot full-sky Mollweide view (rotated to centre if specified)
         fig=hp.orthview(map,cmap=cmap,max=pmax,min=pmin,cbar=False,rot=rot,half_sky=half_sky,fig=fig.number,title=title,
@@ -640,7 +640,7 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     half_sky=False,pngOut=None,verbose=False,cbg=None,
     dirData='data/',minzoom=10,pngSize=3000,thumbOut=None,margins=None,
     thumbSize=300,title=None,RAcen=0,grid=False,addCredit=True,addLogos=False,notext=True,
-    plotbounds=True,plotlines=True,plotlabels=True,border=None):
+    plotbounds=True,plotlines=True,plotlabels=True,border=None,lw=1,fontsize=2):
     # ev: superevent ID [default='S190412m']
     # mapIn: map to read in (filename [string] or HEALPix map). [Default=None]. If not provided, tries to get event with superevent ID provided in <ev> from GraceDB
     # proj: projection (moll=Mollweide [Default], cart=Cartesian)
@@ -720,11 +720,11 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     if grid:
         plotGrid(dRA=45, dDec=30)
     if plotbounds:
-        plotConstBounds(color=(0.5,0.5,0.5),verbose=verbose,alpha=0.5)
+        plotConstBounds(color=(0.5,0.5,0.5),verbose=verbose,alpha=0.5,lw=lw)
     if plotlabels:
         plotConstLabs(color=(0,0.7,0.7),verbose=verbose,alpha=alphaLab,maxdist=maxdist,plotcentre=rot)
     if plotlines:
-        plotConstLines(color=(0,0.7,0.7),verbose=verbose,alpha=0.5)
+        plotConstLines(color=(0,0.7,0.7),verbose=verbose,alpha=0.5,lw=lw)
 
     if addCredit:
         credit='Credit: LIGO-Virgo/Cardiff Uni./C. North'

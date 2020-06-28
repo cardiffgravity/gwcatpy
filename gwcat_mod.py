@@ -792,6 +792,7 @@ class GWCat(object):
                     notext=False
                     bgcolor='w'
                     border=None
+                    lw=None
                     if p=='cartzoom':
                         zoomlim=0.8
                         rotmap=True
@@ -808,6 +809,7 @@ class GWCat(object):
                         title=' '
                         bgcolor='k'
                         margins=[0,0,0,0]
+                        lw=5
                     elif p=='cart':
                         zoomlim=None
                         rotmap=False
@@ -831,6 +833,7 @@ class GWCat(object):
                         margins=[0,0,0,0]
                         title=' '
                         border='black'
+                        lw=5
                     elif p=='moll_pretty_black':
                         zoomlim=None
                         rotmap=False
@@ -844,6 +847,7 @@ class GWCat(object):
                         margins=[0,0,0,0]
                         title=' '
                         border='white'
+                        lw=5
                     elif p=='moll_rot':
                         zoomlim=None
                         rotmap=True
@@ -865,7 +869,7 @@ class GWCat(object):
                             verbose=verbose,title=title,notext=notext,cbg=bgcolor,
                             pngOut=pp['pngFile'],thumbOut=pp['thumbFile'],
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
-                            addCredit=credit,addLogos=logos,border=border)
+                            addCredit=credit,addLogos=logos,border=border,lw=lw)
                         # add links
                         self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
                             'type':'skymap-plot','created':Time.now().isot})
