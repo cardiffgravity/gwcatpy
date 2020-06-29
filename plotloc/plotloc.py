@@ -246,7 +246,6 @@ def getConstLabs(fIn=None,verbose=False):
 
 def plotConstLabs(color='w',alpha=1,verbose=False,radeclim=None,maxdist=None,plotcentre=[0,0],fontsize=10):
     # plot constellation labels, restricted to RA/Dec range if set
-    print('fontsize',fontsize)
     if not radeclim:
         radeclim=[-180,180,-90,90]
     if maxdist==None:
