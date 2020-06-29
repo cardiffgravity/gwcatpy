@@ -793,6 +793,7 @@ class GWCat(object):
                     bgcolor='w'
                     border=None
                     lw=None
+                    fontsize=10
                     if p=='cartzoom':
                         zoomlim=0.8
                         rotmap=True
@@ -809,7 +810,8 @@ class GWCat(object):
                         title=' '
                         bgcolor='k'
                         margins=[0,0,0,0]
-                        lw=5
+                        lw=3
+                        fontsize=20
                     elif p=='cart':
                         zoomlim=None
                         rotmap=False
@@ -829,11 +831,13 @@ class GWCat(object):
                         credit=False
                         notext=True
                         plotlines=False
+                        plotlabels=False
+                        plotbounds=False
                         bgcolor='w'
                         margins=[0,0,0,0]
                         title=' '
                         border='black'
-                        lw=5
+                        lw=2
                     elif p=='moll_pretty_black':
                         zoomlim=None
                         rotmap=False
@@ -843,11 +847,13 @@ class GWCat(object):
                         credit=False
                         notext=True
                         plotlines=False
+                        plotlabels=False
+                        plotbounds=False
                         bgcolor='black'
                         margins=[0,0,0,0]
                         title=' '
                         border='white'
-                        lw=5
+                        lw=2
                     elif p=='moll_rot':
                         zoomlim=None
                         rotmap=True
@@ -869,7 +875,7 @@ class GWCat(object):
                             verbose=verbose,title=title,notext=notext,cbg=bgcolor,
                             pngOut=pp['pngFile'],thumbOut=pp['thumbFile'],
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
-                            addCredit=credit,addLogos=logos,border=border,lw=lw)
+                            addCredit=credit,addLogos=logos,border=border,lw=lw,fontsize=fontsize)
                         # add links
                         self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
                             'type':'skymap-plot','created':Time.now().isot})

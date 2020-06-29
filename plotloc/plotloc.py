@@ -244,8 +244,9 @@ def getConstLabs(fIn=None,verbose=False):
             const[c['id']]['coord']=c['geometry']['coordinates']
     return(const)
 
-def plotConstLabs(color='w',alpha=1,verbose=False,radeclim=None,maxdist=None,plotcentre=[0,0]):
+def plotConstLabs(color='w',alpha=1,verbose=False,radeclim=None,maxdist=None,plotcentre=[0,0],fontsize=10):
     # plot constellation labels, restricted to RA/Dec range if set
+    print('fontsize',fontsize)
     if not radeclim:
         radeclim=[-180,180,-90,90]
     if maxdist==None:
@@ -268,7 +269,7 @@ def plotConstLabs(color='w',alpha=1,verbose=False,radeclim=None,maxdist=None,plo
             # point is in range
             # print(ra,dec,angdist,maxdist)
             # if verbose:print('printing {:s} [{:.2f},{:2f} : {:2f}<{:.2f}]'.format(const['name'],ra,dec,angdist,maxdist))
-            hp.projtext(ra,dec,const['name'],lonlat=True,color=color,alpha=alpha,ha='center',va='center')
+            hp.projtext(ra,dec,const['name'],lonlat=True,color=color,alpha=alpha,ha='center',va='center',fontsize=fontsize)
         # elif verbose:print('not printing {:s} [{:.2f},{:2f} : {:2f}>{:.2f}]'.format(const['name'],ra,dec,angdist,maxdist))
     return
 
@@ -640,7 +641,7 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     half_sky=False,pngOut=None,verbose=False,cbg=None,
     dirData='data/',minzoom=10,pngSize=3000,thumbOut=None,margins=None,
     thumbSize=300,title=None,RAcen=0,grid=False,addCredit=True,addLogos=False,notext=True,
-    plotbounds=True,plotlines=True,plotlabels=True,border=None,lw=1,fontsize=2):
+    plotbounds=True,plotlines=True,plotlabels=True,border=None,lw=1,fontsize=10):
     # ev: superevent ID [default='S190412m']
     # mapIn: map to read in (filename [string] or HEALPix map). [Default=None]. If not provided, tries to get event with superevent ID provided in <ev> from GraceDB
     # proj: projection (moll=Mollweide [Default], cart=Cartesian)
@@ -722,7 +723,7 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     if plotbounds:
         plotConstBounds(color=(0.5,0.5,0.5),verbose=verbose,alpha=0.5,lw=lw)
     if plotlabels:
-        plotConstLabs(color=(0,0.7,0.7),verbose=verbose,alpha=alphaLab,maxdist=maxdist,plotcentre=rot)
+        plotConstLabs(color=(0,0.7,0.7),verbose=verbose,alpha=alphaLab,maxdist=maxdist,plotcentre=rot,fontsize=fontsize)
     if plotlines:
         plotConstLines(color=(0,0.7,0.7),verbose=verbose,alpha=0.5,lw=lw)
 
