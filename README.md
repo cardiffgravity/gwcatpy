@@ -24,38 +24,38 @@ This will make a data directory (if it doesn't already exist), and a `status.jso
 
 ### Accessing the data
 
-`GC = gwcatpy.GWCat(filein=<path-to-json-data-file>)`
-`GC.data`: dictionary object containing event data, indexed by event name
-`GC.links`: dictionary object containing links, indexed by event name
-`GC.datadict`: dictionary object containing parameters, indexed by parameter name
+ * `GC = gwcatpy.GWCat(filein=<path-to-json-data-file>)`
+ * `GC.data`: dictionary object containing event data, indexed by event name
+ * `GC.links`: dictionary object containing links, indexed by event name
+ * `GC.datadict`: dictionary object containing parameters, indexed by parameter name
 
-`GC.events`: pandas Dataframe object containing event data
-`GC.eventrefs`: pandas Dataframe object containing event links
-`GC.events`: pandas Dataframe object containing parameter data
+ * `GC.events`: pandas Dataframe object containing event data
+ * `GC.eventrefs`: pandas Dataframe object containing event links
+ * `GC.events`: pandas Dataframe object containing parameter data
 
 ##### To export to json:
 ~~~~
 GC.exportJson(fileout,[dir='', verbose=False])
 ~~~~
-fileout = [string] filename of data file (containing data, parameters and links)
-dir = [string, optional] directory to export data to (default=current directory)
-verbose = [boolean, optional] set to print messages
+ * fileout = [string] filename of data file (containing data, parameters and links)
+ * dir = [string, optional] directory to export data to (default=current directory)
+ * verbose = [boolean, optional] set to print messages
 
 ##### To export to csv:
 ~~~~
-GC.exportCSV(datafileout,[dictfileout=None,linksfileout=None,dir='',verbose=False,clearcols=True])
+GC.exportCSV(datafileout,[dictfileout=None, linksfileout=None, dir='', verbose=False, clearcols=True])
 ~~~~
-datafileout = [string] filename of data file
-dir = [string, optional] directory to export data to (default=current directory)
-dictfileout = [string, optional] filename to export parameters to(if not present, no parameters output)
-linksfileout = [string, optional] filename of links to (if not present, no links output)
-verbose = [boolean, optional] set to print messages
-clearcols = [boolean, optional] set to clear empty rows if present
+ * datafileout = [string] filename of data file
+ * dir = [string, optional] directory to export data to (default=current directory)
+ * dictfileout = [string, optional] filename to export parameters to(if not present, no parameters output)
+ * linksfileout = [string, optional] filename of links to (if not present, no links output)
+ * verbose = [boolean, optional] set to print messages
+ * clearcols = [boolean, optional] set to clear empty rows if present
 
 ##### To export to Excel:
 ~~~~
-GC.exportExcel(fileout,[dir='', verbose=False])
+GC.exportExcel(fileout, [dir='', verbose=False])
 ~~~~
-fileout = [string] filename of data file (containing data, parameters and links in separate sheets)
-dir = [string, optional] directory to export data to (default=current directory)
-verbose = [boolean, optional] set to print messages
+ * fileout = [string] filename of data file (containing data, parameters and links in separate sheets)
+ * dir = [string, optional] directory to export data to (default=current directory)
+ * verbose = [boolean, optional] set to print messages
