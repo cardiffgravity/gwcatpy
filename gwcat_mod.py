@@ -137,10 +137,13 @@ class GWCat(object):
         Input: fileIn [string, OPTIONAL]: filename to read data from
         """
         self.dataDir=dataDir
+        if not os.path.isdir(dataDir):
+            # make new directory
+            os.mkdir(dataDir)
         if baseurl[-1]!='/':baseurl=baseurl+'/'
         self.baseurl=baseurl
         self.statusFile=os.path.join(dataDir,statusFile)
-        
+
         self.getStatus()
         eventsIn=json.load(open(fileIn))
         self.data=eventsIn['data']
