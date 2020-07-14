@@ -538,7 +538,7 @@ def plotContours(map,level=0.9,color='w',alpha=0.5,linestyle='-',linewidth=2,ver
         hp.projplot(raCont[s],decCont[s],lonlat=True,color=color,alpha=alpha,linestyle=linestyle,linewidth=linewidth)
     return(cont)
 
-def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',res=4,verbose=False):
+def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',res=4,verbose=False,coord='G'):
 
     try:
         nside=hp.get_nside(mapIn)
@@ -560,7 +560,7 @@ def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',res=4,verbose=False):
             lat1=lat0+dlon
             if verbose:print('plotting {}x{} of {}x{} : [{},{}] - [{}:{}]'.format(
                 i+1,j+1,res,int(res/2),-lon_off-dlon/2,lat0,-lon_off+dlon/2,lat1))
-            tmp[...] = np.transpose(hp.cartview(T,coord=['C','G'],return_projected_map=1,
+            tmp[...] = np.transpose(hp.cartview(T,coord=['C',coord],return_projected_map=1,
                 xsize=1024,ysize=1024,lonra=[-dlon/2,dlon/2],latra=[lat0,lat1],rot=[-lon_off,0]))
             # print(i,j,i*1024,(i+1)*1024,j*1024,(j+1)*1024)
             sky[i*1024:(i+1)*1024,j*1024:(j+1)*1024] = tmp
