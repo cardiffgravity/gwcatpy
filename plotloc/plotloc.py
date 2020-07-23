@@ -573,8 +573,8 @@ def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',jpgOut='',res=4,verbos
         if verbose:print('saving to',pngOut)
         plot.savefig(pngOut)
     if jpgOut!='':
-        jpgOut=pngOut.replace('.png','.jpg')
-        if verbose:print('saving to',pngOut)
+        # jpgOut=pngOut.replace('.png','.jpg')
+        if verbose:print('saving to',jpgOut)
         plot.savefig(jpgOut)
 
     return
