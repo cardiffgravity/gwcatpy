@@ -570,9 +570,11 @@ def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',jpgOut='',res=4,verbos
     plot.figimage(np.flipud(np.transpose(sky)),cmap=cmap)
 
     if pngOut!='':
+        if verbose:print('saving to',pngOut)
         plot.savefig(pngOut)
     if jpgOut!='':
         jpgOut=pngOut.replace('.png','.jpg')
+        if verbose:print('saving to',pngOut)
         plot.savefig(jpgOut)
 
     return
