@@ -546,7 +546,7 @@ def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',res=4,verbose=False,co
     except:
         if verbose:print('reading map from {}'.format(fileIn))
         T = hp.read_map(fileIn)
-        nside=hp.get_nside(mapIn)
+        nside=hp.get_nside(T)
 
     sky = np.zeros((int(1024*res),int(1024*res/2)),dtype=np.float32)
     tmp = np.zeros((1024,1024),dtype=np.float32)
