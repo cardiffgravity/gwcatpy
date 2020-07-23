@@ -924,6 +924,25 @@ class GWCat(object):
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq,verbose=verbose,res=res,coord='C')
                 self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
                     'type':'skymap-plain','created':Time.now().isot})
+            
+            updateGravEqJpg=False
+            gravFileEqJpg=os.path.join(gravDir,'{}_{}_eq.jpg'.format(ev,gravNpix))
+            if not os.path.isfile(gravFileEqJpg):
+                updateGravEqJpg=True
+            gravLinkEqJpgtxt='Skymap (Equatorial, no annotations, jpg)'
+            gravLinkEqJpg=self.getLink(ev,gravLinkEqJpgtxt,srchtype='text')
+            if len(gravLinkEqJpg)>0:
+                if 'created' in gravLinkEqJpg[0]:
+                    if link[0]['created']<fitsCreated:
+                        updateGravEqJpg=True
+            if updateGravEqJpg:
+                if not mapread:
+                    map=plotloc.read_map(filename,verbose=verbose)
+                if verbose:
+                    print('plotting Gravoscope (Equatorial, JPG) for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
+                plotloc.plotGravoscope(mapIn=map,jpgOut=gravFileEqJpg,verbose=verbose,res=res,coord='C')
+                self.addLink(ev,{'url':self.rel2abs(gravFileEqJpg),'text':gravLinkEqJpgtxt,
+                    'type':'skymap-plain','created':Time.now().isot})
 
         if logFile:
             logF.close()

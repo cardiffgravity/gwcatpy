@@ -538,7 +538,7 @@ def plotContours(map,level=0.9,color='w',alpha=0.5,linestyle='-',linewidth=2,ver
         hp.projplot(raCont[s],decCont[s],lonlat=True,color=color,alpha=alpha,linestyle=linestyle,linewidth=linewidth)
     return(cont)
 
-def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',res=4,verbose=False,coord='G'):
+def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',jpgOut='',res=4,verbose=False,coord='G'):
 
     try:
         nside=hp.get_nside(mapIn)
@@ -570,6 +570,9 @@ def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',res=4,verbose=False,co
     plot.figimage(np.flipud(np.transpose(sky)),cmap=cmap)
 
     if pngOut!='':
+        plot.savefig(pngOut)
+    if jpgOut!='':
+        jpgOut=pngOut.replace('.png','.jpg')
         plot.savefig(pngOut)
 
     return
