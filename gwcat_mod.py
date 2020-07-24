@@ -886,7 +886,7 @@ class GWCat(object):
                             'type':'skymap-thumbnail','created':Time.now().isot})
 
             res=8
-            gravNpix=int(8*1024)
+            gravNpix=int(res*1024)
             updateGrav=False
             gravFile=os.path.join(gravDir,'{}_{}.png'.format(ev,gravNpix))
             if not os.path.isfile(gravFile):
@@ -925,8 +925,8 @@ class GWCat(object):
                 self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
                     'type':'skymap-plain','created':Time.now().isot})
             
-            res4096=7
-            gravNpix4096=int(4*1024)
+            res4096=4
+            gravNpix4096=int(res4096*1024)
             updateGravEq4096=False
             gravFileEq4096=os.path.join(gravDir,'{}_{}_eq.png'.format(ev,gravNpix4096))
             if not os.path.isfile(gravFileEq4096):
