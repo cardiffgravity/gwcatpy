@@ -1536,7 +1536,10 @@ class GWCat(object):
             mch=wfs[ev]['Mchirp']
             K0=2.7e17 #Msun^5 s^-5
 
-            if m1+m2 > 67:
+            if m1+m2 > 100:
+                tres=1.0/4096
+                f_lower=10
+            elif m1+m2 > 67:
                 tres=1.0/4096
                 f_lower=20
             elif m1+m2>5:
