@@ -1,0 +1,173 @@
+{
+    "meta": {},
+    "datadict": {
+        "GPS": {
+            "name": "%data.GPS.name%",
+            "priority": 4,
+            "sigfig": 12,
+            "err": 0,
+            "name_en": "GPS"
+        },
+        "UTC": {
+            "name": "%data.UTC.name%",
+            "priority": 1,
+            "sigfig": 0,
+            "type": "varchar",
+            "err": 0,
+            "name_en": "UTC"
+        },
+        "rho": {
+            "name": "%data.rho.name%",
+            "priority": 3,
+            "sigfig": 3,
+            "err": 0,
+            "name_en": "Signal to Noise ratio (Network)"
+        },
+        "FAR": {
+            "name": "%data.FAR.name%",
+            "priority": 1,
+            "sigfig": 2,
+            "unit": "%data.FAR.unit%",
+            "err": 0,
+            "name_en": "False alarm rate",
+            "unit_en": "yr^-1"
+        },
+        "sigma": {
+            "name": "%data.sigma.name%",
+            "priority": 6,
+            "sigfig": 2,
+            "err": 0,
+            "name_en": "Significance"
+        },
+        "M1": {
+            "name": "%data.M1.name%",
+            "priority": 1,
+            "sigfig": 3,
+            "unit": "%data.mass.unit.msun%",
+            "err": 2,
+            "name_en": "Primary mass",
+            "unit_en": "M_sun"
+        },
+        "M2": {
+            "name": "%data.M2.name%",
+            "priority": 1,
+            "sigfig": 3,
+            "unit": "%data.mass.unit.msun%",
+            "err": 2,
+            "name_en": "Secondary mass",
+            "unit_en": "M_sun"
+        },
+        "Mchirp": {
+            "name": "%data.Mchirp.name%",
+            "priority": 3,
+            "sigfig": 3,
+            "unit": "%data.mass.unit.msun%",
+            "err": 2,
+            "name_en": "Chirp mass",
+            "unit_en": "M_sun"
+        },
+        "Mtotal": {
+            "name": "%data.Mtotal.name%",
+            "priority": 2,
+            "sigfig": 3,
+            "unit": "%data.mass.unit.msun%",
+            "err": 2,
+            "name_en": "Total mass",
+            "unit_en": "M_sun"
+        },
+        "chi": {
+            "name": "%data.chi.name%",
+            "priority": 4,
+            "sigfig": 2,
+            "err": 2,
+            "name_en": "Effective inspiral spin"
+        },
+        "Mfinal": {
+            "name": "%data.Mfinal.name%",
+            "priority": 2,
+            "sigfig": 3,
+            "unit": "%data.mass.unit.msun%",
+            "err": 2,
+            "name_en": "Final mass",
+            "unit_en": "M_sun"
+        },
+        "Mratio": {
+            "name": "%data.Mratio.name%",
+            "priority": 2,
+            "sigfig": 3,
+            "unit": false,
+            "err": 2,
+            "name_en": "Mass ratio"
+        },
+        "af": {
+            "name": "%data.af.name%",
+            "priority": 3,
+            "sigfig": 2,
+            "err": 2,
+            "name_en": "Final spin"
+        },
+        "Erad": {
+            "name": "%data.Erad.name%",
+            "priority": 6,
+            "sigfig": 2,
+            "unit": "%data.Erad.unit%",
+            "err": 2,
+            "name_en": "Radiated energy",
+            "unit_en": "M_sun c^2"
+        },
+        "lpeak": {
+            "name": "%data.lpeak.name%",
+            "priority": 6,
+            "sigfig": 2,
+            "unit": "%data.lpeak.unit%",
+            "err": 2,
+            "name_en": "Peak luminosity",
+            "unit_en": "10^56 erg s^-1"
+        },
+        "DL": {
+            "name": "%data.DL.name%",
+            "priority": 2,
+            "sigfig": 2,
+            "unit": "%data.DL.unit%",
+            "err": 2,
+            "name_en": "Luminosity distance",
+            "unit_en": "Mpc"
+        },
+        "z": {
+            "name": "%data.z.name%",
+            "priority": 2,
+            "sigfig": 2,
+            "err": 2,
+            "name_en": "Redshift"
+        },
+        "deltaOmega": {
+            "name": "%data.skyArea.name%",
+            "priority": 5,
+            "sigfig": 2,
+            "unit": "%data.skyArea.unit%",
+            "err": 0,
+            "name_en": "Sky localization area",
+            "unit_en": "deg^2"
+        },
+        "obsrun": {
+            "name": "%data.obsrun.name%",
+            "priority": 5,
+            "sigfig": 0,
+            "err": 0,
+            "name_en": "Observing run"
+        },
+        "net": {
+            "name": "%data.net.name",
+            "priority": 5,
+            "sigfig": 0,
+            "err": 0,
+            "name_en": "Detector network"
+        },
+        "detType": {
+            "name": "%data.dettype.name%",
+            "name_en": "Detection type"
+        }
+    },
+    "data": {},
+    "links": {}
+}

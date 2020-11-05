@@ -7,16 +7,25 @@ import healpy as hp
 import h5py
 import os
 import requests
-from . import gwosc
-from . import gracedb
+from . import gwcat_gwosc as gwosc
+from . import gwcat_gracedb as gracedb
 from . import plotloc
 from astropy.table import Table
 import astropy_healpix as ah
 from pycbc.waveform import get_td_waveform
+import ciecplib
 # import gracedb
 # import gwosc
 
-def json2jsonp(fileIn,fileOut=None,verbose=True):
+def json2jsonp(fileIn,fileOut=None,verbose=False):
+    """Read Json file and convert to Jsonp
+    Inputs:
+        * fileIn [string]: json filename
+        * fileOut [string, optional]: jsonp filename. Default = input with json->jsonp
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * None
+    """
     if fileOut==None:
         fileOut=fileIn.replace('json','jsonp')
     if verbose:print('reading JSON from {}'.format(fileIn))
@@ -29,8 +38,21 @@ def json2jsonp(fileIn,fileOut=None,verbose=True):
     for l in lines:
         fOut.write(l)
     fOut.close()
+    return
 
 def compareElement(el1,el2,verbose=False):
+    """Convert event from pandas dataframe format to json-style object
+    Inputs:
+        * el1 [object]: element 1 to compare
+        * el1 [object]: element 2 to compare
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * Boolean or None:
+            * True: Elements are the same
+            * False: Elements are not the same
+            * None: Elements can't be compared
+    """
+    
     if type(el1)!=type(el2):
         # types are different
         if verbose: print('inconsistent types [{},{}]'.format(type(el1),type(el2)))
@@ -63,7 +85,14 @@ def compareElement(el1,el2,verbose=False):
     return()
 
 def dataframe2jsonEvent(evIn,params,verbose=False):
-    # convert dataframe element to json
+    """Convert event from pandas dataframe format to json-style object
+    Inputs:
+        * dataIn [object]:pandas-style event record
+        * params [dictionary]: units information (merge with datadict)
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * Json-style event object:
+    """
     evOut={}
     for p in range(len(params)):
         param=params[p]
@@ -103,6 +132,17 @@ def dataframe2jsonEvent(evIn,params,verbose=False):
 
 def getManual(loc='',verbose=True,export=False,
     dirOut=None,fileOut=None,indent=2):
+    """Get data from manually constructed data-file
+    Inputs:
+        * loc [string, optional]: filename to load. Default='data/manual-events.json'
+        * verbose [boolean, optional]: set for verbose output. Default=False
+        * export [boolean, optional]: set to for export data to new file. Default=False
+        * dirOut [string, optional]: directory to export data to (if export=-True). Default=../../data/
+        * fileOut [string, optional]: file to export data to (if export=-True). Default=manual-events.json
+        * indent [integer, optional]: json indent in exported file (if export=True). Default=2
+    Outputs:
+        * Json-style object containing data in datafile
+    """
     if loc=='':
         loc='data/manual-events.json'
     if verbose: print('Retrieving Manual data from {}'.format(loc))
@@ -125,16 +165,33 @@ def getManual(loc='',verbose=True,export=False,
     return mandata
 
 def setPrec(v,prec):
+    """Set precision of variable
+    Inputs:
+        * v [float]: value to set precision of
+        * prec [integer]: precision to use
+    Outputs:
+        * [float]: value at set precision
+    """
     if prec:
         precstr='{:.'+'{}'.format(prec)+'g}'
     else:precstr='{}'
     return float(precstr.format(v))
 
 class GWCat(object):
+    """Cataloge object containing useful methods for editing and accessing
+    """
     def __init__(self,fileIn='../data/events.json',statusFile='status.json',
-        dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',verbose=False):
-        """Initialise catalogue from input file
-        Input: fileIn [string, OPTIONAL]: filename to read data from
+        dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',verbose=False,mode='public'):
+        """Initialise catalogue from input file and set basic parameters
+        Inputs:
+            * fileIn [string, optional]: filename to load from. Default=../data/events.json
+            * statusFile [string, optional]: filename to use for data status. Default=status.json
+            * dataDir [string, optional]: Directory to store data in. Default=data/
+            * baseurl [string, optional]: URL to use for absolute URLs. Default=https://data.cardiffgravity.org/gwcat-data/
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * mode [string, optional]: mode. Default=public
+        Outputs:
+            * None
         """
         self.dataDir=dataDir
         if not os.path.isdir(dataDir):
@@ -143,7 +200,14 @@ class GWCat(object):
         if baseurl[-1]!='/':baseurl=baseurl+'/'
         self.baseurl=baseurl
         self.statusFile=os.path.join(dataDir,statusFile)
-
+        
+        self.mode=mode
+        if mode=='dev':
+            self.devMode=True
+            self.sess=ciecplib.Session("LIGO")
+        else:
+            self.devMode=False
+            self.sess=None
         self.getStatus()
         eventsIn=json.load(open(fileIn))
         self.data=eventsIn['data']
@@ -160,17 +224,38 @@ class GWCat(object):
         return
     
     def getEvent(self,ev):
+        """Get event from database by event name
+        Inputs:
+            * ev [string]: event
+        Outputs:
+            * [object] json-style event object
+            * (None if no event not in database)
+        """
         if ev in self.data:
             return(self.data[ev])
         else:
             return
     def getParameter(self,ev,param):
+        """Get parameter for event from database
+        Inputs:
+            * ev [string]: event name
+            * param [string]: parameter name
+        Outputs:
+            * [object] json-style parameter object
+            * (None if no event not in database)
+        """
         pOut=None
         if ev in self.data:
             if param in self.data[ev]:
                 pOut=self.data[ev][param]
         return(pOut)
     def getTimestamps(self):
+        """Get timestamps of all events in database
+        Inputs:
+            * None
+        Outputs:
+            * [object] list of timestamps (of creation) in database, listed by event name
+        """
         evTimes={}
         for ev in self.data:
             try:
@@ -181,6 +266,12 @@ class GWCat(object):
         return(evTimes)
 
     def getStatus(self):
+        """Load status from status file (set by self.statusFile). Initialise file if not present. Store in self.status.
+        Inputs:
+            * None
+        Outputs:
+            * None
+        """
         try:
             self.status=json.load(open(self.statusFile))
         except:
@@ -190,10 +281,25 @@ class GWCat(object):
         return
 
     def saveStatus(self):
+        """Save status (in self.status) for status file (set by self.statusFile).
+        Inputs:
+            * None
+        Outputs:
+            * None
+        """
         json.dump(self.status,open(self.statusFile,'w'),indent=4)
         return
 
     def updateStatus(self,ev,desc='',statusIn=None,verbose=False):
+        """Update status for event and save to status file
+        Inputs:
+            * ev [string]: event name
+            * desc [string, optional]: Description to use in verbose output
+            * statusIn [opject, optional]: status values to add for event. Default: load from metadata of event
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         # check if it's in status
         if type(ev)!=str:
             print('ERROR: ev must be string object:',type(ev))
@@ -230,6 +336,13 @@ class GWCat(object):
         return
 
     def updateMapSrc(self,ev,verbose=False):
+        """Update map source fits file and created date, and store in metadata. Load header and extract distance if possible. Called during importManual and importGraceDB.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         lmap=self.getLink(ev,'skymap-fits',verbose=verbose)
         if len(lmap)>1 and verbose:
             print('Warning: more than one skymap link for {}'.format(ev))
@@ -242,6 +355,7 @@ class GWCat(object):
                 hdr=fits.getheader(l['url'],ext=1)
                 self.data[ev]['meta']['mapdatesrc']=hdr['DATE']
                 self.data[ev]['meta']['mapurlsrc']=l['url']
+                self.updateStatus(ev,verbose=verbose,desc='Map src')
                 if verbose:print('Skymap loaded for {}:'.format(ev),l['url'])
                 try:
                     distmu=hdr['DISTMEAN']
@@ -252,8 +366,16 @@ class GWCat(object):
                     if verbose:print('no distance information for {}'.format(ev))
             except:
                 print('WARNING: Error loading skymap for {}:'.format(ev),l)
+        return
 
     def importManual(self,manIn,verbose=False):
+        """import Manual data into catalogue. Overwrites any existing data for events if they are already present
+        Inputs:
+            * manIn [object]: event data
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         print('*** Importing Manual Data...')
         for g in manIn['data']:
             # get old metadata
@@ -282,6 +404,13 @@ class GWCat(object):
         return
 
     def setPrecision(self,extraprec=3,verbose=False):
+        """set precision for best, err, lower, upper for all events, based on precision in self.datadict
+        Inputs:
+            * extraprec [integer, optional]: additional precision to store. Default=3
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         from numbers import Number
         for ev in self.data:
             for p in self.data[ev]:
@@ -326,7 +455,53 @@ class GWCat(object):
                 self.data[ev][p]=newParam
         return
         
+    def importGWTC(self,gwtcIn,verbose=False,devMode=False):
+        """import GWTC data into catalogue. Uses gwosc.gwtc_to_cat to convert.
+        Updates H5 source file.
+        Convert to dataframe
+        Inputs:
+            * gwtcIn [object]: event data
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * devMode [boolean, optional]: set to fix DCC link for dev mode. Default=False.
+        Outputs:
+            * None
+        """
+        print('*** Importing GWTC Catalog...')
+        catData=gwosc.gwtc_to_cat(gwtcIn,self.datadict,verbose=verbose,devMode=self.devMode)
+        for ev in catData['data']:
+            # get old metadata
+            dmeta={}
+            if ev in self.data:
+                if 'meta' in self.data[ev]:
+                    dmeta=self.data[ev]['meta']
+            self.data[ev]=catData['data'][ev]
+            # update metadata
+            for m in catData['data'][ev]['meta']:
+                dmeta[m]=catData['data'][ev]['meta'][m]
+            self.data[ev]['meta']=dmeta
+            if ev in catData['links']:
+                for l in catData['links'][ev]:
+                    self.addLink(ev,l,verbose=verbose)
+            self.updateStatus(ev,verbose=verbose,desc='GWTC Catalog import')
+        for ev in catData['links']:
+            self.updateH5Src(ev,verbose=False)
+            self.updateStatus(ev,verbose=False,desc='Data file src')
+        self.evTimes = self.getTimestamps()
+        self.json2dataframe(verbose=verbose)
+        if not 'GWTC' in self.meta:
+            self.meta['GWTC']={}
+        for m in gwtcIn['meta']:
+            self.meta['GWTC'][m]=gwtcIn['meta'][m]
+                        
+        return
+        
     def matchGraceDB(self,verbose=False):
+        """match confirmed events with GraceDB events (assuming <1s GPS timestamp difference)
+        Inputs:
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         gdblist=[]
         gpslist=[]
         for ev in self.data:
@@ -364,41 +539,29 @@ class GWCat(object):
             
         return
         
-    def importGWTC1(self,gwtc1In,verbose=False):
-        print('*** Importing GWTC-1...')
-        catData=gwosc.gwtc1_to_cat(gwtc1In,verbose=verbose)
-        for g in catData['data']:
-            # get old metadata
-            dmeta={}
-            if g in self.data:
-                if 'meta' in self.data[g]:
-                    dmeta=self.data[g]['meta']
-            self.data[g]=catData['data'][g]
-            # update metadata
-            for m in catData['data'][g]['meta']:
-                dmeta[m]=catData['data'][g]['meta'][m]
-            self.data[g]['meta']=dmeta
-            if g in catData['links']:
-                for l in catData['links'][g]:
-                    self.addLink(g,l,verbose=verbose)
-            self.updateStatus(g,verbose=verbose,desc='GWTC-1 import')
-        for ev in catData['links']:
-            self.updateMapSrc(ev,verbose=True)
-            self.updateStatus(ev,verbose=verbose,desc='Map src')
-        self.evTimes = self.getTimestamps()
-        self.json2dataframe(verbose=verbose)
-        if not 'GWTC-1' in self.meta:
-            self.meta['GWTC-1']={}
-        for m in gwtc1In['meta']:
-            self.meta['GWTC-1'][m]=gwtc1In['meta'][m]
-        return
-    
     # backwards compatibility
     def importGwosc(self,gwoscIn,verbose=False):
-        print('***WARNING: importGwosc replaced by importGWTC1***')
-        self.importGWTC1(gwoscIn,verbose=verbose)
+        """OBSOLETE - inpurt passed to importGWTC
+        Inputs:
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
+        print('***WARNING: importGwosc replaced by importGWTC***')
+        self.importGWTC(gwoscIn,verbose=verbose)
     
     def importGraceDB(self,gracedbIn,verbose=False,forceUpdate=False):
+        """import GraceDB data into catalogue. Uses gracedb.gracedb2cat to convert.
+        Remove retracted events.
+        Update map source file.
+        Export to dataframe
+        Inputs:
+            * gracedbIn [object]: event data
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * forceUpdate [boolean, optional]: set to force updates of gracedb events. Default=False (only update new events)
+        Outputs:
+            * None
+        """
         print('*** Importing GraceDB...')
         evTimes=self.getTimestamps()
         gdb=gracedb.gracedb2cat(gracedbIn['data'],verbose=verbose,
@@ -429,7 +592,7 @@ class GWCat(object):
         for ev in gdb['links']:
             if gdb['data'][ev]['meta'].get('type')=='Retraction':
                 continue
-            self.updateMapSrc(ev)
+            self.updateMapSrc(ev,verbose=verbose)
             self.updateStatus(ev,verbose=verbose,desc='Map src')
         self.evTimes = self.getTimestamps()
         self.json2dataframe(verbose=verbose)
@@ -440,6 +603,13 @@ class GWCat(object):
         return
 
     def updateH5Src(self,ev,verbose=False):
+        """Update H5 source fits file, and store in metadata. Called during importGWTC.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         ldat=self.getLink(ev,'data-file',verbose=verbose)
         if len(ldat)>1 and verbose:
             print('Warning: more than one data file link for {}'.format(ev))
@@ -455,27 +625,62 @@ class GWCat(object):
             except:
                 print('WARNING: Error loading data file for {}:'.format(ev),l)
 
-    def updateH5(self,verbose=False,forceUpdate=False):
+    def updateH5(self,verbose=False,forceUpdate=False,forceUpdateData=False,replace=False):
+        """Check whether H5 files need updating and re-download if necessary (using getH5 of getH5Local).
+        Update parameters from H5 files.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * replace [boolean, optional]: set to replace existing parameters with H5. Default=False
+            * forceUpdate [boolean, optional]: set to download all files. Default=False (only download updated files)
+            * forceUpdateData [boolean, optional]: set to force update of all data. Default=False (only download updated files)
+        Outputs:
+            * None
+        """
+        # update h5 data files and parameters
         print('*** Updating data files...')
+        
         for ev in self.data:
-            # compare map creation dates
+            # compare map creation dates and versions
             try:
-                h5datelocal=Time(self.status[ev]['h5datelocal'])
-                h5datesrc=Time(self.status[ev]['h5datesrc'])
+                if 'h5datelocal' in self.status[ev] and 'h5datesrc' in self.status[ev]:
+                    h5datelocal=Time(self.status[ev]['h5datelocal']).gps
+                    h5datesrc=Time(self.status[ev]['h5datesrc']).gps
+                else:
+                    h5datelocal=-1
+                    h5datesrc=-1
+                if 'h5verlocal' in self.status[ev] and 'h5versrc' in self.status[ev]:
+                    h5verlocal=self.status[ev]['h5verlocal']
+                    h5versrc=self.status[ev]['h5versrc']
+                else:
+                    h5verlocal=-1
+                    h5versrc=-1
                 h5file=self.status[ev]['h5urllocal']
                 if not os.path.isfile(h5file):
                     if verbose:print('No file. Need to re-download data file for {}'.format(ev))
                     updateH5=True
-                elif h5datesrc>h5datelocal:
-                    if verbose:
-                        print('Newer file. Need to re-download data file for {}'.format(ev))
-                        print('src',h5datesrc)
-                        print('local',h5datelocal)
-                    updateH5=True
+                elif h5datesrc>0 and h5datelocal>0:
+                    if (h5datesrc-h5datelocal)>1:
+                        if verbose:
+                            print('Newer file. Need to re-download data file for {}'.format(ev))
+                            print('src',Time(h5datesrc,format='gps').isot)
+                            print('local',Time(h5datelocal,format='gps').isot)
+                        updateH5=True
+                    else:
+                        if verbose:print('Older file. Do not need to re-download data file for {}'.format(ev))
+                        updateH5=False
+                elif h5versrc>0 and h5verlocal>0:
+                    if h5versrc>h5verlocal:
+                        if verbose:print('Newer version [{}>{}]. Need to re-download map for {}'.format(h5versrc,h5verlocal,ev))
+                        updateH5=True
+                    else:
+                        if verbose:print('Older file. Do not need to re-download data file for {}'.format(ev))
+                        updateH5=False
                 else:
-                    if verbose:print('Older file. Do not need to re-download data file for {}'.format(ev))
-                    updateH5=False
+                    if verbose:print('Unable to determine H5 file date/version for {}. Re-downloading'.format(ev))
+                    updateH5=True
             except:
+                if verbose:print('Error determining H5 file date/version for {}. Re-downloading'.format(ev))
                 updateH5=True
             if updateH5 or forceUpdate:
                 if verbose:print('Updating data file for {}'.format(ev))
@@ -485,22 +690,88 @@ class GWCat(object):
             else:
                 if verbose:print('No data file update required for {}'.format(ev))
             
+            # update data (if required)
+            updateH5data=False
             try:
-                h5File=self.status[ev]['h5urllocal']
-            except:
-                if verbose:print('no local data file for {}'.format(ev))
-                continue
-            newparams=self.getH5Params(ev,verbose=verbose)
-            for p in newparams:
-                if verbose:
-                    if (p in self.data[ev]):
-                        print('replacing {}[{}]:{}->{}'.format(ev,p,self.data[ev][p],newparams[p]))
+                if 'h5datelocal' in self.status[ev] and 'h5dateloaded' in self.status[ev]:
+                    h5datelocal=Time(self.status[ev]['h5datelocal']).gps
+                    h5dateloaded=Time(self.status[ev]['h5dateloaded']).gps
                 else:
-                    print('adding {}[{}]:{}'.format(ev,p,newparams[p]))
-                self.data[ev][p]=newparams[p]
+                    h5datelocal=-1
+                    h5dateloaded=-1
+                if 'h5verlocal' in self.status[ev] and 'h5verloaded' in self.status[ev]:
+                    h5verlocal=self.status[ev]['h5verlocal']
+                    h5verloaded=self.status[ev]['h5verloaded']
+                else:
+                    h5verlocal=-1
+                    h5verloaded=-1
+                if h5datelocal>0 and h5dateloaded>0:
+                    if (h5datelocal-h5dateloaded)>1:
+                        if verbose:
+                            print('File newer than data. Need to re-load data file for {}'.format(ev))
+                            print('local',Time(h5datelocal,format='gps').isot)
+                            print('loaded',Time(h5dateloaded,format='gps').isot)
+                        updateH5data=True
+                    else:
+                        if verbose:
+                            print('No need to update h5 data for {}'.format(ev))
+                        updateH5data=False
+                elif h5verlocal>0 and h5verloaded>0:
+                    if h5verlocal>h5verloaded:
+                        if verbose:
+                            print('File later version than data [{}>{}]. Need to re-load data file for {}'.format(ev))
+                        updateH5data=True
+                    else:
+                        if verbose:
+                            print('No need to update h5 data for {}'.format(ev))
+                        updateH5data=False
+                else:
+                    if verbose: print('Unable to determine H5 data date/version for {}. Re-loading'.format(ev))
+                    updateH5data=True
+            except:
+                if verbose: print('Error determining H5 data date/version for {}. Re-loading'.format(ev))
+                updateH5data=True
+                
+            if updateH5data or forceUpdateData:
+                try:
+                    h5File=self.status[ev]['h5urllocal']
+                except:
+                    if verbose:print('no local data file for {}'.format(ev))
+                    continue
+                newparams=self.getH5Params(ev,verbose=verbose)
+                if (newparams):
+                    for p in newparams:
+                        if (p in self.data[ev]):
+                            if replace:
+                                self.data[ev][p]=newparams[p]
+                                if verbose:
+                                    print('replacing {}[{}]:{}->{}'.format(ev,p,self.data[ev][p],newparams[p]))
+                            else:
+                                if verbose:
+                                    print('NOT replacing {}[{}]:{}->{}'.format(ev,p,self.data[ev][p],newparams[p]))
+                        else:
+                            self.data[ev][p]=newparams[p]
+                            print('adding {}[{}]:{}'.format(ev,p,newparams[p]))
+                    stat={'h5dateloaded':Time.now().isot,
+                        'h5verloaded':self.data[ev]["version"]}
+                    self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='h5 data loaded')
+                else:
+                    if verbose: print('no parameters from H5 for {}'.format(ev))
+            else:
+                if verbose:print('No H5 data update required for {}'.format(ev))
         return
 
     def getH5(self,ev,verbose=False):
+        """Download h5 files and update status with filenames, timestamps.
+        Call extractTar if tarfile.
+        Check file is valid H5 file.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * [object] dict containing extracted "h5" and "map" file locations.
+        """
+        # download and import remote h5 file into database
         import h5py
         h5Dir=os.path.join(self.dataDir,'h5')
         if not os.path.exists(h5Dir):
@@ -516,7 +787,11 @@ class GWCat(object):
         url=ldat[0]['url']
         if verbose: print('Downloading data file for {} from {}'.format(ev,url))
         srcfile=os.path.split(url)[-1]
-        h5req=requests.get(url)
+        
+        if self.devMode:
+            h5req=self.sess.get(url)
+        else:
+            h5req=requests.get(url)
         if h5req.ok:
             try:
                 # if url.find('.fits.gz')>=0:
@@ -534,13 +809,26 @@ class GWCat(object):
             except:
                 print('ERROR: Problem loading/saving data file:',h5req.status_code)
                 return h5req
+            if ldat[0]['filetype']=='tar':
+                print('NEED TO EXTRACT TARBALL')
+                stat={'tarurllocal':h5File,
+                    'tarurlsrc':url,
+                    'tardatelocal':Time.now().isot,
+                    'tardatesrc':Time(os.path.getmtime(h5File),format='unix').isot,
+                    'tarverlocal':self.data[ev]["version"],
+                    'tarversrc':self.data[ev]["version"]}
+                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='tar file local')
+                tarout=self.extractTar(ev,verbose=verbose)
+                h5File=tarout['h5']
             try:
                 testread=h5py.File(h5File)
                 if verbose: print('Valid h5 file for {}: {}'.format(ev,h5File))
                 # hdr=fits.getheader(fitsFile,ext=1)
                 stat={'h5urllocal':h5File,
                     'h5datelocal':Time.now().isot,
-                    'h5datesrc':Time.now().isot}
+                    'h5datesrc':Time(os.path.getmtime(h5File),format='unix').isot,
+                    'h5verlocal':self.data[ev]["version"],
+                    'h5versrc':self.data[ev]["version"]}
                 self.data[ev]['meta']['h5urllocal']=h5File
                 self.data[ev]['meta']['h5datelocal']=Time.now().isot
                 self.data[ev]['meta']['h5datesrc']=Time.now().isot
@@ -554,7 +842,85 @@ class GWCat(object):
             return h5req.status_code
         return(0)
         
+    def extractTar(self,ev,verbose=False):
+        """Extract h5 and map file from tarfile
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * [number] HTTP status code if unsuccessful. 0 if not. 
+        """
+        import tarfile
+        tarFile=self.status[ev]['tarurllocal']
+        tarF=tarfile.open(tarFile)
+        tarNames=tarF.getnames()
+        # get first file with _comoving.h5
+        h5name=[n for n in tarNames if '_comoving.h5' in n]
+        # h5name=[n for n in tarNames if '.h5' in n]
+        if len(h5name)>0:
+            h5name=h5name[0]
+        mapname=[n for n in tarNames if 'PublicationSamples.fits' in n]
+        if len(mapname)>0:
+            mapname=mapname[0]
+        
+        out={}
+        
+        # extract h5 to h5 directory tarfile
+        h5Dir=os.path.join(self.dataDir,'h5')
+        try:
+            tarF.extract(h5name,path=h5Dir)
+            h5File=os.path.join(h5Dir,h5name)
+            if (verbose): print('Extracted h5 file to {}'.format(h5File))
+            # save location of h5 file to status
+            stat={'h5urllocal':h5File,
+                'h5datelocal':Time.now().isot,
+                'h5verlocal':self.data[ev]["version"],
+                'h5versrc':self.data[ev]["version"],
+                'h5urlsrc':self.status[ev]["tarurlsrc"]}
+            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='h5 file local')
+            out['h5']=h5File
+        except:
+            pass
+            
+        # extract fits to fits directory
+        fitsDir=os.path.join(self.dataDir,'fits')
+        if not os.path.exists(fitsDir):
+            # create directory
+            os.mkdir(fitsDir)
+            print('Created directory: {}'.format(fitsDir))
+        try:
+            tarF.extract(mapname,path=fitsDir)
+            mapFile=os.path.join(fitsDir,mapname)
+            if (verbose): print('Extracted Map to {}'.format(mapFile))
+            
+            # save location of map to status
+            # save location of h5 file to status
+            stat={'mapurllocal':mapFile,
+                'mapurlsrc':self.status[ev]["tarurlsrc"],
+                'mapdatelocal':Time.now().isot,
+                'mapdatesrc':Time(os.path.getmtime(mapFile),format='unix').isot,
+                'mapverlocal':self.data[ev]["version"],
+                'mapversrc':self.data[ev]["version"]}
+            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='map file local')
+            out['map']=mapFile
+            self.addLink(ev,{'url':self.status[ev]["mapurlsrc"],'text':'Sky Map',
+                'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
+        except:
+            pass
+        # return h5file and mapfile locations?
+        return out
+        
     def getH5Local(self,ev,verbose=False):
+        """Download h5 files from local file and update status with filenames, timestamps.
+        Call extractTar if tarfile.
+        Check file is valid H5 file.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * [object] dict containing extracted "h5" and "map" file locations.
+        """
+        # import local h5 file into database
         ldat=self.getLink(ev,'data-local')
         if len(ldat)==0:
             if verbose: print('ERROR: no local data file link for {}',format(ev))
@@ -563,16 +929,31 @@ class GWCat(object):
             if verbose: print('WARNING: more than one local data file link for {}',format(ev))
         h5File=ldat[0]['url']
         if verbose: print('Using local h5 file for {}: {}'.format(ev,h5File))
+        if ldat[0]['filetype']=='tar':
+            print('NEED TO EXTRACT TARBALL')
+            try:
+                stat={'tarurllocal':h5File,
+                    'tarurlsrc':ldat[0]['url'],
+                    'tardatelocal':Time.now().isot,
+                    'tardatesrc':Time(os.path.getmtime(h5File),format='unix').isot,
+                    'tarverlocal':self.data[ev]["version"],
+                    'tarversrc':self.data[ev]["version"]}
+                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='tar file local')
+                tarout=self.extractTar(ev,verbose=verbose)
+                h5File=tarout['h5']
+            except:
+                print('ERROR: Problem opening local data file for {}:'.format(ev),h5File)
+                return
         try:
             testread=h5py.File(h5File)
             if verbose: print('Valid h5 file for {}: {}'.format(ev,h5File))
             # hdr=fits.getheader(fitsFile,ext=1)
             stat={'h5urllocal':h5File,
                 'h5datelocal':Time.now().isot,
-                'h5datesrc':Time.now().isot}
+                'h5datesrc':Time(os.path.getmtime(h5File),format='unix').isot}
             self.data[ev]['meta']['h5urllocal']=h5File
             self.data[ev]['meta']['h5datelocal']=Time.now().isot
-            self.data[ev]['meta']['h5datesrc']=Time.now().isot
+            self.data[ev]['meta']['h5datesrc']=Time(os.path.getmtime(h5File),format='unix').isot
             self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='data file local')
         except:
             print('ERROR: Problem opening local data file for {}:'.format(ev),h5File)
@@ -580,25 +961,40 @@ class GWCat(object):
         return
         
     def getH5Params(self,ev,verbose=False):
-        if verbose:print('getting H5 parameters for {}'.format(ev))
-        m1check=self.getParameter(ev,'M1')
-        approx=self.getParameter(ev,'approximant')
-        if not (m1check):
-            if verbose:print('no M1 parameter for {}'.format(ev))
-            return({})
+        """Get parameters from H5 file for GWTC-2. Uses comparison of parameter to select best approximant if default isn't available.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * [object] dict containing new parameters. None if not GWTC2
+        """
+        if self.getParameter(ev,'catalog')!='GWTC-2':
+            if verbose:print('not GWTC-2')
+            newparams=None
         else:
-            m1check=m1check['best']
-            if verbose:print('M1 parameter for {}:'.format(ev),m1check)
-        try:
-            h5File=self.status[ev]['h5urllocal']
-        except:
-            if verbose:print('no local data file for {}'.format(ev))
-            return({})
-        newparams=gwosc.geth5params(h5File,pcheck={'M1':m1check},approx=approx,datadict=self.datadict,verbose=verbose)
-        if verbose:print(newparams)
+            newparams={}
+            if verbose:print('getting H5 parameters for {}'.format(ev))
+            m1check=self.getParameter(ev,'M1')
+            if not (m1check):
+                if verbose:print('no M1 parameter for {}'.format(ev))
+            else:
+                m1check=m1check['best']
+                if verbose:print('M1 parameter for {}:'.format(ev),m1check)
+            try:
+                h5File=self.status[ev]['h5urllocal']
+            except:
+                if verbose:print('no local data file for {}'.format(ev))
+            newparams=gwosc.geth5paramsGWTC2(h5File,pcheck={'M1':m1check},datadict=self.datadict,verbose=verbose)
+            # if verbose:print(newparams)
         return(newparams)
         
     def removeCandidates(self,verbose=False):
+        """remove candidates that have a firm detection
+        Inputs:
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         remCands=[]
         for ev in self.data:
             if 'gracedb' in self.data[ev]['meta']:
@@ -609,41 +1005,79 @@ class GWCat(object):
         self.json2dataframe(verbose=verbose)
         for remev in remCands:
             if remev in self.data:
-                if verbose: print('Removing {}'.format(evgdb))
+                if verbose: print('Removing {}'.format(remev))
                 self.data.pop(remev)
             if remev in self.links:
                 self.links.pop(remev)
         return
 
     def updateMaps(self,verbose=False,forceUpdate=False):
+        """Check whether map files need updating and re-download if necessary (using getMap).
+        Update 90% area.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * forceUpdate [boolean, optional]: set to download all files. Default=False (only download updated files)
+        Outputs:
+            * None
+        """
         print('*** Updating maps...')
         for ev in self.data:
+            if verbose: print('Checking map status for {}'.format(ev))
             # compare map creation dates
             try:
-                mapdatelocal=Time(self.status[ev]['mapdatelocal'])
-                mapdatesrc=Time(self.status[ev]['mapdatesrc'])
+                if 'mapdatelocal' in self.status[ev] and 'mapdatesrc' in self.status[ev]:
+                    mapdatelocal=Time(self.status[ev]['mapdatelocal']).gps
+                    mapdatesrc=Time(self.status[ev]['mapdatesrc']).gps
+                else:
+                    mapdatelocal=-1
+                    mapdatesrc=-1
+                if 'mapverlocal' in self.status[ev] and 'mapversrc' in self.status[ev]:
+                    mapverlocal=self.status[ev]['mapverlocal']
+                    mapversrc=self.status[ev]['mapversrc']
+                else:
+                    mapverlocal=-1
+                    mapversrc=-1
                 mapfile=self.status[ev]['mapurllocal']
                 if not os.path.isfile(mapfile):
-                    if verbose:print('Need to re-download map for {}'.format(ev))
+                    if verbose:print('No file. Need to re-download map for {}'.format(ev))
                     updateMap=True
-                elif mapdatesrc>mapdatelocal:
+                elif mapdatesrc>0 and mapdatelocal>0 and (mapdatesrc-mapdatelocal)>1:
+                    if verbose:print('Newer date file. Need to re-download map for {}'.format(ev))
+                    print('src',Time(mapdatesrc,format='gps').isot)
+                    print('local',Time(mapdatelocal,format='gps').isot)
+                    updateMap=True
+                elif mapversrc>0 and mapverlocal>0 and mapversrc>mapverlocal:
+                    if verbose:print('Newer version. Need to re-download map for {}'.format(ev))
                     updateMap=True
                 else:
+                    if verbose:print('Map up-to-date. No need to re-download map for {}'.format(ev))
                     updateMap=False
             except:
+                if verbose:print('Unable to check map status. Redownloading')
                 updateMap=True
             if updateMap or forceUpdate:
+                # if verbose:print('{} status: {}'.format(ev,self.status[ev]))
                 self.getMap(ev,verbose=verbose)
                 if verbose:print('Updating map for {}'.format(ev))
                 self.calcAreas(ev,verbose=verbose)
             else:
                 if verbose:print('No map update required for {}'.format(ev))
                 if not 'deltaOmega' in self.data[ev]:
+                    if verbose:print('recalculating area')
                     self.calcAreas(ev,verbose=verbose)
             # fitsFile=self.status[ev]['mapdatelocal']
         return
 
     def getMap(self,ev,verbose=False):
+        """Download map files and update status with filenames, timestamps.
+        Calculate 90% areas.
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * [object] FITS header or HTTP status code if unsuccessful
+        """
         fitsDir=os.path.join(self.dataDir,'fits')
         if not os.path.exists(fitsDir):
             # create directory
@@ -658,41 +1092,52 @@ class GWCat(object):
         url=lmap[0]['url']
         if verbose: print('Downloading skymap for {} from {}'.format(ev,url))
         srcfile=os.path.split(url)[-1]
-        mapreq=requests.get(url)
-        if mapreq.ok:
+        if srcfile.find(ev)<0:
+            fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
+        else:
+            fitsFile=os.path.join(fitsDir,srcfile)
+        if url.find('http')<0:
+            # local file
+            if verbose: print('copying local file from {} to {}'.format(srcfile,fitsFile))
+            os.system('copy {} {}'.format(url,fitsFile))
+        else:
+            if self.devMode:
+                mapreq=self.sess.get(url)
+            else:
+                mapreq=requests.get(url)
             try:
-                # if url.find('.fits.gz')>=0:
-                #     fileext='fits.gz'
-                # else:
-                #     fileext='fits'
-                if srcfile.find(ev)<0:
-                    fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
-                else:
-                    fitsFile=os.path.join(fitsDir,srcfile)
                 fOut=open(fitsFile,'wb')
                 fOut.write(mapreq.content)
                 fOut.close()
-                if verbose:print('Map downloaded')
+                if verbose:print('Map downloaded from {} to {}'.format(srcfile,fitsFile))
             except:
-                print('ERROR: Problem loading/saving map:',mapreq.status_code)
-                return mapreq
-            try:
-                hdr=fits.getheader(fitsFile,ext=1)
-                stat={'mapurllocal':fitsFile,
-                    'mapdatelocal':hdr['DATE']}
-                self.data[ev]['meta']['mapurllocal']=fitsFile
-                self.data[ev]['meta']['mapdatelocal']=hdr['DATE']
-                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='maplocal')
-            except:
-                print('ERROR: Problem opening fits file for {}:'.format(ev),fitsFile)
-                return
-            self.calcAreas(ev,verbose=verbose)
-        else:
-            print('ERROR: Problem loading map:',mapreq.status_code)
-            return mapreq.status_code
+                print('ERROR: Problem loading map:',mapreq.status_code)
+                return mapreq.status_code
+        try:
+            hdr=fits.getheader(fitsFile,ext=1)
+            self.data[ev]['meta']['mapurllocal']=fitsFile
+            self.data[ev]['meta']['mapdatelocal']=hdr['DATE']
+            stat={'mapurllocal':fitsFile,
+                'mapdatelocal':hdr['DATE']}
+            if 'version' in self.data[ev]:
+                stat['mapverlocal']=self.data[ev]["version"]
+                stat['mapversrc']=self.data[ev]["version"]
+            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='maplocal')
+        except:
+            print('ERROR: Problem opening fits file for {}:'.format(ev),fitsFile)
+            return
+        self.calcAreas(ev,verbose=verbose)
+
         return hdr
 
     def calcAreas(self,ev,verbose=False):
+        """Calculate 90% area of map (using plotloc.read_map, plotloc.getProbMap, plotloc.getArea) and save to database
+        Inputs:
+            * ev [string]: event name
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * [object] 90% likelihood area (in degree^2)
+        """
         if 'mapurllocal' in self.status[ev]:
             fitsFile=self.status[ev]['mapurllocal']
             map=plotloc.read_map(fitsFile,verbose=verbose)
@@ -708,18 +1153,35 @@ class GWCat(object):
                 # return
 
     def rel2abs(self,rel,url=None):
+        """Convert relative to absolute URL (for links)
+        Inputs:
+            * rel [string]: relative URL to use
+            * url [string, optional]: Absolute URL to pre-pend. Default = self.baseurl
+        Outputs:
+            * [string] absolute url
+        """
         if url==None:
             url=self.baseurl
         return(url + rel)
 
-    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None):
+    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True):
+        """Create maps of event localisations in various projections, zooms, styles etc.
+        Save links to database.
+        Inputs:
+            * overwrite [boolean, optional]: set to overwrite all plots. Default=False (only output those needed)
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * logFile [string, optional]: set for output to logFile. Default=None (no logging)
+            * updateLink [boolean, optional]: set to add/update link even if plot doesn't need making. Default=True
+        Outputs:
+            * None
+        """
         print('*** Updating plots...')
-        if os.path.exists(logFile):
-            os.remove(logFile)
-            print('Removing log file: {}'.format(logFile))
-        else:
-            print("Log file doesn't exist: {}".format(logFile))
         if logFile:
+            if os.path.exists(logFile):
+                os.remove(logFile)
+                print('Removing log file: {}'.format(logFile))
+            else:
+                print("Log file doesn't exist: {}".format(logFile))
             print('Writing Maps log to: {}'.format(logFile))
             logF=open(logFile,'a')
 
@@ -730,17 +1192,25 @@ class GWCat(object):
             os.mkdir(pngDir)
         if not os.path.exists(gravDir):
             os.mkdir(gravDir)
-        for ev in self.events:
-            if not 'mapurlsrc' in self.status[ev]:
-                if verbose:
-                    print('no mapurlsrc for {}'.format(ev))
-                continue
+        # print(self.data)
+        for ev in self.data:
+            print('plotting {}'.format(ev))
+            # if not 'mapurlsrc' in self.status[ev]:
+            #     if verbose:
+            #         print('no mapurlsrc for {}'.format(ev))
+            #     continue
             if not 'mapurllocal' in self.status[ev]:
                 self.getMap(ev,verbose=verbose)
+            if not 'mapurllocal' in self.status[ev]:
+                if verbose:print('unable to get map for {}'.format(ev))
+                continue
             filename=self.status[ev]['mapurllocal']
             # if verbose:print('plotting maps at {}'.format(filename))
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
-            srcfile=os.path.split(self.status[ev]['mapurlsrc'])[-1]
+            if 'mapurlsrc' in self.status[ev]:
+                srcfile=os.path.split(self.status[ev]['mapurlsrc'])[-1]
+            else:
+                srcfile=os.path.split(self.status[ev]['mapurllocal'])[-1]
             ptitle='{} [{}]'.format(ev,srcfile)
             plots={'moll':{'linktxt':'Skymap (Mollweide fullsky)'},
                 'moll_pretty':{'linktxt':'Skymap (Mollweide fullsky, pretty)'},
@@ -752,6 +1222,7 @@ class GWCat(object):
                 'cart_rot':{'linktxt':'Skymap (Cartesian fullsky, rotated)'}
             }
             nUpdate=0
+            nUpdateLinks=0
             for p in plots:
                 plots[p]['pngFile']=os.path.join(pngDir,'{}_{}.png'.format(ev,p))
                 plots[p]['thumbFile']=os.path.join(pngDir,'{}_{}.thumb.png'.format(ev,p))
@@ -765,11 +1236,22 @@ class GWCat(object):
                     if 'created' in link[0]:
                         if link[0]['created']<fitsCreated:
                             plots[p]['update']=True
+                else:
+                    nUpdateLinks+=1
                 if plots[p]['update']: nUpdate+=1
 
             if nUpdate==0:
                 if verbose:print('all plots exist for {}'.format(ev))
                 mapread=False
+                if nUpdateLinks>0:
+                    if verbose: print('skipping plotting {} maps. Adding links'.format(ev))
+                    for p in plots:
+                        pp=plots[p]
+                        # add links
+                        self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                            'type':'skymap-plot','created':Time.now().isot})
+                        self.addLink(ev,{'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                            'type':'skymap-thumbnail','created':Time.now().isot})
             else:
                 try:
                     map=plotloc.read_map(filename,verbose=verbose)
@@ -869,7 +1351,12 @@ class GWCat(object):
                         proj='cart'
                     # plot map
                     if not pp['update']:
-                        if verbose: print('skipping plotting {} map'.format(pp['linktxt']))
+                        if verbose: print('skipping plotting {} map. Adding links'.format(pp['linktxt']))
+                        # add links
+                        self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                            'type':'skymap-plot','created':Time.now().isot})
+                        self.addLink(ev,{'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                            'type':'skymap-thumbnail','created':Time.now().isot})
                     else:
                         if verbose:print('plotting {} map to {}'.format(pp['linktxt'],pp['pngFile']))
                         plotloc.makePlot(ev=ev,mapIn=map,dirData=dataDir,
@@ -895,7 +1382,7 @@ class GWCat(object):
             gravLink=self.getLink(ev,gravLinktxt,srchtype='text')
             if len(gravLink)>0:
                 if 'created' in gravLink[0]:
-                    if link[0]['created']<fitsCreated:
+                    if gravLink[0]['created']<fitsCreated:
                         updateGrav=True
             if updateGrav:
                 if not mapread:
@@ -914,7 +1401,7 @@ class GWCat(object):
             gravLinkEq=self.getLink(ev,gravLinkEqtxt,srchtype='text')
             if len(gravLinkEq)>0:
                 if 'created' in gravLinkEq[0]:
-                    if link[0]['created']<fitsCreated:
+                    if gravLinkEq[0]['created']<fitsCreated:
                         updateGravEq=True
             if updateGravEq:
                 if not mapread:
@@ -935,7 +1422,7 @@ class GWCat(object):
             gravLinkEq4096=self.getLink(ev,gravLinkEq4096txt,srchtype='text')
             if len(gravLinkEq4096)>0:
                 if 'created' in gravLinkEq4096[0]:
-                    if link[0]['created']<fitsCreated:
+                    if gravLinkEq4096[0]['created']<fitsCreated:
                         updateGravEq4096=True
             if updateGravEq4096:
                 if not mapread:
@@ -951,7 +1438,15 @@ class GWCat(object):
         return
 
     def makeGravoscopeTilesPerl(self,overwrite=False,verbose=False):
-
+        """OBSEOLETE Create tile-sets of event localisation maps using perl script for use with Gravoscope.
+        Save links to database.
+        Inputs:
+            * overwrite [boolean, optional]: set to overwrite all plots. Default=False (only output those needed)
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
+        
         gravDir=os.path.join(self.dataDir,'gravoscope')
         dataDir=os.path.join(self.dataDir,'fits')
         for ev in self.events:
@@ -971,12 +1466,24 @@ class GWCat(object):
         return
 
     def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False,tilesurl=None,updateLink=True):
-
+        """Create tile-sets of event localisation maps using perl script for use with Gravoscope.
+        Save links to database.
+        Inputs:
+            * overwrite [boolean, optional]: set to overwrite all plots. Default=False (only output those needed)
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * tilesurl [string, optional]: base URL for tilesets. Default=None (uses self.baseurl)
+            * updateLink [boolean, optional]: set to update link (regardless of whether tiles are created). Default=True
+        Outputs:
+            * None
+        """
         gravDir=os.path.join(self.dataDir,'gravoscope')
         for ev in self.events:
             tilesDir=os.path.join(gravDir,'{}-tiles'.format(ev))
             if not os.path.exists(tilesDir):
                 os.mkdir(tilesDir)
+            if not 'mapdatelocal' in self.status[ev]:
+                if verbose: print('no local map found for {}. Skipping.'.format(ev))
+                continue
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
             filename=self.status[ev]['mapurllocal']
             gravLinktxt='Gravoscope tileset'
@@ -1009,6 +1516,7 @@ class GWCat(object):
             else:
                 # no link. Need to add link and regenerate tiles
                 if verbose: print('adding tiles link for Gravoscope tileset for {}'.format(ev))
+                gravLinktxt='Gravoscope tileset'
                 self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
                     'type':'gravoscope-tiles','created':fitsCreated.isot})
                 updateTiles=True
@@ -1034,6 +1542,17 @@ class GWCat(object):
         return
 
     def getLink(self,ev,srchtxt,srchtype='type',verbose=False,retIdx=False):
+        """Get link(s) for event based on string search of type or text
+        Inputs:
+            * ev [string]: event name
+            * srchtxt [string]: text to search for (assumes regex)
+            * srchtype [string, optional]: field to search. Default='type'
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * retIdx [boolean, optional]: set to output index of link. Default=False (output link itself)
+        Outputs:
+            * If retIdx==True: [list] List of indices of matching links
+            * If retIdx==False: [list] List of matching link objects
+        """
         if not ev in self.links:
             return []
         lOut=[]
@@ -1049,6 +1568,15 @@ class GWCat(object):
         return(lOut)
 
     def addLink(self,ev,link,replace=True,verbose=False):
+        """Add or replace link(s) for event
+        Inputs:
+            * ev [string]: event name
+            * link [object]: json-style object to add as link
+            * replace [bookean, optional]: set to replace links with same type and text. Default=True.
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         # replace: replace link with same type and text. (N.B. Always replace open-data links)
         if not ev in self.links:
             self.links[ev]=[]
@@ -1453,9 +1981,18 @@ class GWCat(object):
         self.dataframe2json(datain,unitsin,linksin,mode=mode,verbose=verbose)
 
         return()
-
-    def addrefs(self,verbose=False):
-        fileIn=os.path.join(self.dataDir,'refs.json')
+    
+    def addRefs(self,refsFile=None,verbose=False):
+        """Add references from refs file
+        Inputs:
+            * refsFile [string, optional]: file to read in. Default='refs.json'
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
+        if not (refsFile):
+            refsFile='refs.json'
+        fileIn=os.path.join(self.dataDir,refsFile)
         try:
             refsIn=json.load(open(fileIn))
         except:
@@ -1463,12 +2000,21 @@ class GWCat(object):
                 print('error loading {}',format(fileIn))
                 return
         for ev in refsIn:
-            if ev in self.events:
+            if ev in self.data:
                 for r in refsIn[ev]:
                     self.addLink(ev,r,verbose=verbose)
+                    if r['type']=='skymap-fits':
+                        self.updateMapSrc(ev,verbose=verbose)
         return
     
     def makeWaveforms(self,verbose=False,overwrite=False):
+        """Create waveforms for events and add to database.
+        Inputs:
+            * overwrite [boolean, optional]: set to overwrite all waveforms, not just new ones. Default=False
+            * verbose [boolean, optional]: set for verbose output. Default=False
+        Outputs:
+            * None
+        """
         print('*** Updating waveforms...')
         # if os.path.exists(logFile):
         #     os.remove(logFile)
