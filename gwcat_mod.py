@@ -420,7 +420,7 @@ class GWCat(object):
                     assert(newParam)
                     assert p in self.datadict
                     assert 'sigfig' in self.datadict[p]
-                    if verbose:print('setting precision for {}[{}]'.format(ev,p))
+                    # if verbose:print('setting precision for {}[{}]'.format(ev,p))
                 except:
                     # if verbose:print('unable to set precision for {}[{}]'.format(ev,p))
                     continue
@@ -443,8 +443,8 @@ class GWCat(object):
                             newhigh=np.round(newParam['err'][1]*mult)/mult
                         else:
                             bprec=sigfig
-                            newlow=setPrec(newParam['err'][0],bprec+extraprec,verbose=verbose)
-                            newhigh=setPrec(newParam['err'][1],bprec+extraprec,verbose=verbose)
+                            newlow=setPrec(newParam['err'][0],bprec+extraprec,verbose=False)
+                            newhigh=setPrec(newParam['err'][1],bprec+extraprec,verbose=False)
                         newerr=[newlow,newhigh]
                         # for e in range(len(newParam['err'])):
                         #     newerr.append(setPrec(newParam['err'][e],sigfig))
