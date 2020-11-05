@@ -35,7 +35,7 @@ def getGwosc(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,
 def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False,devMode=False,sess=None):
     """Get GWTC from GWOSC json files and add parameters.
     Inputs:
-        * url [string, optional]: URL to download from. Default=https://www.gw-openscience.org/eventapi/json/GWTC-1-confident/
+        * url [string, optional]: URL to download from. Default=https://www.gw-openscience.org/eventapi/json/GWTC/
         * useLocal [boolean, optional]: Set to use local files (default URL=data/local-mirror/GWTC-dev.json)
         * verbose [boolean, optional]: set for verbose output. Default=False
         * export [boolean, optional]: set for export to JSON file output. Default=False
@@ -58,7 +58,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         elif useLocal:
             url='data/local-mirror/GWTC-dev.json'
         else:
-            url='https://www.gw-openscience.org/eventapi/json/GWTC-1-confident/'
+            url='https://www.gw-openscience.org/eventapi/json/GWTC/'
     if verbose: print('Retrieving GWTC data from {}'.format(url))
     if devMode:
         if not sess:
