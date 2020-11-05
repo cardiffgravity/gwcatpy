@@ -175,7 +175,7 @@ def setPrec(v,prec,verbose=False):
     if prec:
         precstr='{:.'+'{}'.format(prec)+'g}'
     else:precstr='{}'
-    if verbose:print('setting precision of {} with precision using format string {}'.format(v,prec,precstr))
+    if verbose:print('setting precision of {} with precision {} using format string {}'.format(v,prec,precstr))
     return float(precstr.format(v))
 
 class GWCat(object):
@@ -420,6 +420,7 @@ class GWCat(object):
                     assert(newParam)
                     assert p in self.datadict
                     assert 'sigfig' in self.datadict[p]
+                    if verbose:print('setting precision for {}[{}]'.format(ev,p))
                 except:
                     # if verbose:print('unable to set precision for {}[{}]'.format(ev,p))
                     continue
@@ -437,13 +438,13 @@ class GWCat(object):
                     if 'err' in newParam:
                         if newbest!=0:
                             bprec=np.floor(np.log10(np.abs(newbest)))+1-(sigfig+extraprec)
+                            mult=10**(-bprec)
+                            newlow=np.round(newParam['err'][0]*mult)/mult
+                            newhigh=np.round(newParam['err'][1]*mult)/mult
                         else:
                             bprec=sigfig
-                        mult=10**(-bprec)
-                        newlow=setPrec(newParam['err'][0],bprec+extraprec,verbose=verbose)
-                        newhigh=setPrec(newParam['err'][1],bprec+extraprec,verbose=verbose)
-                        # newlow=np.round(newParam['err'][0]*mult)/mult
-                        # newhigh=np.round(newParam['err'][1]*mult)/mult
+                            newlow=setPrec(newParam['err'][0],bprec+extraprec,verbose=verbose)
+                            newhigh=setPrec(newParam['err'][1],bprec+extraprec,verbose=verbose)
                         newerr=[newlow,newhigh]
                         # for e in range(len(newParam['err'])):
                         #     newerr.append(setPrec(newParam['err'][e],sigfig))
