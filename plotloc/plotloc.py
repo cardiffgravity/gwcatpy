@@ -13,6 +13,16 @@ import astropy_healpix as ah
 # plot.ion()
 
 def read_map(fileIn,verbose=False,force=False,fullout=False):
+    """Read FITS map and convert to Healpix if required
+    Inputs:
+        * fileIn [string]: fits filename
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * force [string, optional]: set to force re-conversion of map (rather than only if converted file can't be read)
+        * fullout [boolean, optional]: set to output more variables. Default=False
+    Outputs:
+        * if fullout==True: [list] [output map, multi-order maps, reordered multi-ordered maps]
+        * if fullout==False: [array] output map
+    """
     hdr=fits.getheader(fileIn,ext=1)
     if hdr.get('ORDERING')=='RING' or hdr.get('ORDERING')=='NESTED':
         # read as normal map
@@ -71,6 +81,12 @@ def read_map(fileIn,verbose=False,force=False,fullout=False):
         return hpmap
 
 def getSuperevents(verbose=False):
+    """get list of superevents from GraceDB (used for plotall)
+    Inputs:
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [list] list of events
+    """
     # get events list from GraceDB
     superevents=[]
     service_url = 'https://gracedb.ligo.org/api/'
@@ -84,6 +100,13 @@ def getSuperevents(verbose=False):
     return results
 
 def getSuperevent(ev,verbose=False):
+    """get specific superevent from GraceDB
+    Inputs:
+        * ev [string]: string name
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [list] list of events
+    """
     # get event properties from GraceDB
     service_url = 'https://gracedb.ligo.org/api/'
     client = GraceDb(service_url,force_noauth=True)
@@ -107,6 +130,16 @@ def getSuperevent(ev,verbose=False):
     return event
 
 def getMapFile(urlIn,dirOut='data/',fileOut='',verbose=True,overwrite=False):
+    """Get mapFile from location
+    Inputs:
+        * urlIn [string]: url to read map from (must be HTTP)
+        * dirOut [string, optional]: directory to output map to. Default='data/'
+        * fileOut [string, optional]: file to output map to. Default='dkyloc.fits'
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * overwrite [boolean, optional]: set to for overwrite file, even if it exists. Default=False
+    Outputs:
+        * HTTP status code
+    """
     # download map file from GraceDB (if not already present)
     if fileOut=='':
         fileOut='skyloc.fits'.format()
@@ -128,16 +161,15 @@ def getMapFile(urlIn,dirOut='data/',fileOut='',verbose=True,overwrite=False):
     f.close()
     return(mapreq.status_code)
 
-# def loadConst():
-#     fConst='const/constellations.json'
-#     fConstBounds='const/constellations.bounds.json'
-#     fConstLines='const/constellations.lines.json'
-#     const=json.load(open(fConst))
-#     cBounds=json.load(open(fConstBounds))
-#     cLines=json.load(open(fConstLines))
-#     return(const,cBounds,cLines)
 
 def getConstBounds(fIn=None,verbose=False):
+    """Read constellation boundaries from file
+    Inputs:
+        * fIn [string, optional]: file to read map from. Default='constdata/constellations.bounds.json'
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [object] object containing constellation boundaries
+    """
     # get constellation boundaries from file
     if not fIn:
         fIn=os.path.join(os.path.dirname(__file__),'constdata/constellations.bounds.json')
@@ -156,6 +188,15 @@ def getConstBounds(fIn=None,verbose=False):
     return(const)
 
 def plotConstBounds(color='w',alpha=1,verbose=False,lw=1):
+    """Plot constellation boundaries using matplotlib
+    Inputs:
+        * color [string, optional]: colour to use when plotting lines. Default='w'
+        * alpha [float, optional]: alpha opacity to use when plotting lines. Default=1
+        * lw [float, optional]: Line width to use when plot lines. Default=1
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * None
+    """
     # plot constellation boundaries
     cb=getConstBounds(verbose=verbose)
     for c in cb:
@@ -177,6 +218,13 @@ def plotConstBounds(color='w',alpha=1,verbose=False,lw=1):
 
 
 def getConstLines(fIn=None,verbose=False):
+    """Read constellation lines from file
+    Inputs:
+        * fIn [string, optional]: file to read map from. Default='constdata/constellations.lines.json'
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [object] object containing constellation lines
+    """
     # get constellation lines from files
     if not fIn:
         fIn=os.path.join(os.path.dirname(__file__),'constdata/constellations.lines.json')
@@ -196,6 +244,18 @@ def getConstLines(fIn=None,verbose=False):
     return(const)
 
 def plotConstLines(color='y',colorstars='y',alpha=1,plotstars=True,verbose=False,lw=1,ms=2):
+    """Plot constellation lines using matplotlib
+    Inputs:
+        * color [string, optional]: colour to use when plotting lines. Default='y'
+        * colorstars [string, optional]: colour to use when plotting stars. Default='y'
+        * alpha [float, optional]: alpha opacity to use when plotting lines. Default=1
+        * plotstars [boolean, optional]: set to plot star locations. Default=False
+        * lw [float, optional]: Line width to use when plotting lines. Default=1
+        * ms [float, optional]: Marker size to use when plotting stars. Default=1
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * None
+    """
     # plot constellation lines
     cb=getConstLines(verbose=verbose)
     for c in cb:
@@ -208,6 +268,16 @@ def plotConstLines(color='y',colorstars='y',alpha=1,plotstars=True,verbose=False
     return
 
 def plotGrid(dRA=45,dDec=30,color='w',alpha=0.5,ls=':'):
+    """Plot grid on map using matplotlib
+    Inputs:
+        * dRA [string, optional]: RA spacing of grid lines [in degrees]. Default=45
+        * dDec [string, optional]: Dec spacing of grid lines [in degrees]. Default=30
+        * color [string, optional]: colour to use when plotting lines. Default='w'
+        * alpha [float, optional]: alpha opacity to use when plotting lines. Default=0.5
+        * ls [string, optional]: Line style to use when plotting lines. Default=':'
+    Outputs:
+        * None
+    """
     print('plotting grid')
     for ra in range(-180,180,dRA):
         print(ra)
@@ -232,6 +302,13 @@ def plotGrid(dRA=45,dDec=30,color='w',alpha=0.5,ls=':'):
     return
 
 def getConstLabs(fIn=None,verbose=False):
+    """Read constellation labels from file
+    Inputs:
+        * fIn [string, optional]: file to read map from. Default='constdata/constellations.json'
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [object] object containing constellation lines
+    """
     # get constellation labels from input file
     if not fIn:
         fIn=os.path.join(os.path.dirname(__file__),'constdata/constellations.json')
@@ -245,6 +322,18 @@ def getConstLabs(fIn=None,verbose=False):
     return(const)
 
 def plotConstLabs(color='w',alpha=1,verbose=False,radeclim=None,maxdist=None,plotcentre=[0,0],fontsize=10):
+    """Plot constellation labels using matplotlib
+    Inputs:
+        * color [string, optional]: colour to use when plotting text. Default='y'
+        * alpha [float, optional]: alpha opacity to use when plotting lines. Default=1
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * radeclim [list, optional]: list of RA/Dec limits of plot [RAmin,RAmax,Decmin,Decmax] (in degrees). default=[-180,180,-90,90]
+        * maxdist [float, optional]: max distance at which to plot labels (in degrees)]. Default=180
+        * plotcentre [list, optional]: coordinates of plot centre [RA,Dec]. Default=[0,0]
+        * fontsize [string, optional]: fontsize to use when plotting text. Default=10
+    Outputs:
+        * None
+    """
     # plot constellation labels, restricted to RA/Dec range if set
     if not radeclim:
         radeclim=[-180,180,-90,90]
@@ -273,6 +362,14 @@ def plotConstLabs(color='w',alpha=1,verbose=False,radeclim=None,maxdist=None,plo
     return
 
 def smoothMap(map,fwhm=None,verbose=False):
+    """Smooth map (NOT USED)
+    Inputs:
+        * map [array]: array of map to smooth
+        * fwhm [float, optional]: FWHM of smoothing (in degrees). Default=1.
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [array] smoothed map
+    """
     # smooth map do specified FWHM
     if fwhm==None:
         fwhm=1
@@ -282,6 +379,16 @@ def smoothMap(map,fwhm=None,verbose=False):
     return(mapsm)
 
 def readMap(fileIn,dirIn='data/',smooth=0,overwrite=False,verbose=False):
+    """read msp from file. Smooth if necessary and export.
+    Inputs:
+        * fileIn [string]: filename of map to read in
+        * dirIn [string, optional]: directory containing map
+        * smooth [float, optional]: FWHM of smoothing (in degrees). Default=0 (no smoothing)
+        * overwrite [boolean, optional]: set to overwrite smoothed map if it exists
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [array] map (smoothed if required)
+    """
     # read in map file, and smooth if requested
     # writes out smoothed file to disc
     if smooth==0:
@@ -291,11 +398,10 @@ def readMap(fileIn,dirIn='data/',smooth=0,overwrite=False,verbose=False):
         smoothFile=os.path.join(dirIn,fileIn.split('.fits')[0]+'_sm{}.fits'.format(smooth))
         fwhmrad=smooth*np.pi/180
         fExists=os.path.isfile(smoothFile)
-        if fExists:
-            if not overwrite:
-                if verbose:print('Loading file: {}'.format(smoothFile))
-                mapsm=hp.read_map(smoothFile)
-                return(mapsm)
+        if fExists and not overwrite:
+            if verbose:print('Loading file: {}'.format(smoothFile))
+            mapsm=hp.read_map(smoothFile)
+            return(mapsm)
         else:
             map=hp.read_map(os.path.join(dirIn,fileIn))
             if verbose: print('smoothing map by {} deg ({:.2f} radians)'.format(smooth,fwhmrad))
@@ -305,6 +411,14 @@ def readMap(fileIn,dirIn='data/',smooth=0,overwrite=False,verbose=False):
             return(mapsm)
 
 def getProbMap(map,prob=0.9,verbose=False):
+    """Get cumulative probability map and calculate area containing given localisation probability. Map pixels contains integrated probability from most probable pixel to least
+    Inputs:
+        * map [array]: map to read in
+        * prob [float, optional]: Probabilty to use to calculate area. Default=0.9
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [list] (map, area within which prob=90% [deg^2]
+    """
     # get map of area > prob
     # returns area and area within limit
     mapP=np.ones_like(map)
@@ -332,6 +446,14 @@ def getProbMap(map,prob=0.9,verbose=False):
     return(mapP,areaP)
 
 def getArea(maptot,prob=0.9,verbose=False):
+    """Get area within which likelihood > given probability
+    Inputs:
+        * maptot [array]: total probability map
+        * prob [float, optional]: Probabilty to use to calculate area. Default=0.9
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [float] area within which prob=90% [deg^2]
+    """
     npix=len(np.where(maptot<=prob)[0])
     pixarea=hp.nside2pixarea(hp.get_nside(maptot),degrees=True)
     areaP=npix*pixarea
@@ -339,6 +461,16 @@ def getArea(maptot,prob=0.9,verbose=False):
     return(areaP)
 
 def getRaDecRange(map,lim=0.5,ltype='max',border=0,verbose=False):
+    """Get RA/Dec range with cumulative probability > limit
+    Inputs:
+        * map [array]: total probability map
+        * lim [float, optional]: Probabilty to use to calculate area. Default=0.5
+        * ltype [string, optional]: 'min' or 'max' depending on looking for min or max. Default='max'
+        * border [float, optional]: UNUSED
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [float] area within which prob=90% [deg^2]
+    """
     # get RA/Dec limits of all pixels which satisfy criteria
     # returns min(RA), max(RA), min(Dec), max(Dec)
     if ltype=='max':
@@ -378,6 +510,15 @@ def getRaDecRange(map,lim=0.5,ltype='max',border=0,verbose=False):
     return([raMin,raMax,decMin,decMax,maxdist])
 
 def makeGrid(radecLim,nX=4096,nY=2048,verbose=False):
+    """Create RA/Dec grid over area (for contour plotting)
+    Inputs:
+        * radecLim [list]: Values to use for grid [raMin,raMax,decMin,decMax,maxdist]
+        * nX [float, optional]: Number of grid points in X dimension across whole RA range. Default=4096
+        * nY [float, optional]: Number of grid points in Y dimension across whole Dec rance. Default=4096
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [object] [x grid locations, y grid locations
+    """
     # make RA/Dec grid over spcified RA/Dec area
     # returns x,y coords of grid
     raMin,raMax,decMin,decMax,maxdist=radecLim
@@ -399,6 +540,15 @@ def makeGrid(radecLim,nX=4096,nY=2048,verbose=False):
     return(xx,yy)
 
 def map2grid(map,xx,yy,verbose=False):
+    """Convert map to x-y grid (for contour plotting). Warning - this is SLOW!
+    Inputs:
+        * map [array]: map to grid
+        * xx [array]: x grid-points
+        * yy [array]: y grid-points
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [array] gridded map of size (len(xx),len(yy))
+    """
     # transform map to x-y grid
     # returns map regridded onto grid
     if verbose: print('Populating grid...')
@@ -417,6 +567,17 @@ def map2grid(map,xx,yy,verbose=False):
     return(zz)
 
 def getContLines(xx,yy,zz,level=0.9,ax=None,verbose=False):
+    """get contour lines for a gridded map
+    Inputs:
+        * xx [array]: x grid-points
+        * yy [array]: y grid-points
+        * zz [array]: gridded map values
+        * level [float, optional]: Level of contour to calculate. Default=0.9
+        * ax [Axes, optional]: Mapplotlib Axes object. Default = current aces [plot.gca()]
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [object] [RA contour points, Dec contour points, contour object]
+    """
     # get contour lines and return as RA/Dec points
     if ax==None:
         ax=plot.gca()
@@ -442,6 +603,26 @@ def getContLines(xx,yy,zz,level=0.9,ax=None,verbose=False):
     return(raCont,decCont,cont)
 
 def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=None,verbose=False,half_sky=False,zoomrng=None,title=None,margins=None,notext=None,border=None):
+    """plot probabilty map with set options
+    Inputs:
+        * map [array]: map to plot
+        * proj [string, optional]: projection for healpix [moll|cart|orth|gnom]. Default='moll'
+        * fig [Figure, optional]: matplotlib Figure object. Default=None (make new figure)
+        * pmax [float, optional]: Max value to plot. Default=None (plot all values)
+        * pmin [float, optional]: Min value to plot. Default=None (plot all values)
+        * rot [array, optional]: Coordinates to rotate to centre. Default=None (no rotation)
+        * cmap [cmap object, optional]: Colourmap to use. Default=cmap.gray
+        * cbg [string, optional]: Background colour to use. Default='w'
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * half_sky [boolean, optional]: set to only plot half the sky in orthview. Default=False
+        * zoomrng [array, optional]: coordinates of zoom range [RAmin,RAmax,Decmin,Decmax,maxdist]. Default=None (no zooming)
+        * title [string, optional]: title to add to plot. Default=None (no title)
+        * margins [array, optional]: margins to add aroung plot [left,right,top,bottom], as passed to healpy ????view. Default=None (default mardins)
+        * notext [boolean, optional] set to not plot any text. Default=None (healpy default)
+        * border [string, optional] colour of border around plot. Default=None (no border)
+    Outputs:
+        * [Figure] matplotlib Figure object containing figure
+    """
     # plot map based on options specified
     if not cmap:
         cmap=cm.gray
@@ -505,6 +686,14 @@ def plotMap(map,proj='moll',fig=None,pmax=None,pmin=None,rot=None,cmap=None,cbg=
     return fig
 
 def getPeak(map,verbose=False,getmin=False):
+    """get peak of map
+    Inputs:
+        * map [array]: map to plot
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * getmin [boolean, optional]: set to return minimum location. Default=False (find maximum)
+    Outputs:
+        * [list] [RA, Dec] (in degrees)
+    """
     # get RA/Dec of peak
     # set getmin to find minimum of map, otherwise fint max [default=max]
     # returns RA and Dec
@@ -520,6 +709,15 @@ def getPeak(map,verbose=False,getmin=False):
     return(raPeak,decPeak)
 
 def plotLab(map,txt,color='r',verbose=False):
+    """plot label at peak of map (on current axes)
+    Inputs:
+        * map [array]: map to plot
+        * txt [string]: text to plot
+        * color [string, optional]: colour of text to plot. Default='r'
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * None
+    """
     # plot label at Peak of map
     # Depracated
     raPeak,decPeak=getPeak(map,verbose=verbose)
@@ -527,6 +725,18 @@ def plotLab(map,txt,color='r',verbose=False):
     return
 
 def plotContours(map,level=0.9,color='w',alpha=0.5,linestyle='-',linewidth=2,verbose=False):
+    """plot contours at level on map (on current axes). Warning - this is SLOW
+    Inputs:
+        * map [array]: map to plot contours on
+        * level [float, optional]: contour level to plot
+        * color [string, optional]: colour of contour to plot. Default='w'
+        * alpha [float, optional]: alpha opacity of contour line. Default=0.5
+        * linestyle [string, optional]: linestyle of contour line. Default='-'
+        * linewidth [string, optional]: linewidth of contour line. Default=2
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * [object] contour object
+    """
     # plot contours of map
     if verbose:print('plotting contours for level:',level)
     radec95=getRaDecRange(map,lim=0.92,ltype='max',verbose=verbose)
@@ -539,7 +749,19 @@ def plotContours(map,level=0.9,color='w',alpha=0.5,linestyle='-',linewidth=2,ver
     return(cont)
 
 def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',jpgOut='',res=4,verbose=False,coord='G'):
-
+    """plot high-res Cartesian map
+    Inputs:
+        * mapIn [array, optional]: map create tiles of
+        * fileIn [string, optional]: file to read map from (if map not valid healpy map).
+        * cmap [cmap, optional]: Matplotlib Colour map to use. Default=cmap.gray
+        * pngOut [string, optional]: file to output PNG map to. Default='' (no PNG file)
+        * jpgOut [string, optional]: file to output JPG map to. Default='' (no PNG file)
+        * res [integer, optional]: resolution to plot, with image 1024*res wide. Default=4
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * coord [string, optional]: coordinate system to plot, converted from 'C' (passed to cartview). Default='G' (Galactic)
+    Outputs:
+        * None
+    """
     try:
         nside=hp.get_nside(mapIn)
         T=mapIn
@@ -580,6 +802,13 @@ def plotGravoscope(mapIn,fileIn='',cmap=cm.gray,pngOut='',jpgOut='',res=4,verbos
     return
 
 def makeTilesPerl(fileIn,verbose=False):
+    """make tileset using perl script (slow)
+    Inputs:
+        * fileIn [string, optional]: filename to load map from
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * None
+    """
     cutterfile=os.path.join(os.path.dirname(__file__),'cutter.pl')
     if verbose:
         v=1
@@ -592,6 +821,19 @@ def makeTilesPerl(fileIn,verbose=False):
 
 def makeTiles(map,dirOut='data/gravoscope/test',cmap=None,vmin=None,vmax=None,
         maxres=3,minres=2,verbose=False):
+    """make tileset using python script
+    Inputs:
+        * map [array]: map to plot
+        * dirOut [string, optional]: directory to output tiles to. Default='data/gravoscope/test'
+        * cmap [cmap object, optional]: matplotlibt colormap to use. Default=cmap.gray
+        * vmin [float, optional]: minimum value to plot. Default=None (no minimum value)
+        * vmax [float, optional]: maximum value to plot. Default=None (no maximumvalue)
+        * maxres [integer, optional]: maximum resolution to output tiles to. Default=3
+        * minres [integer, optional]: minimum resolution to output tiles to. Default=2
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+    Outputs:
+        * None
+    """
     if not os.path.exists(dirOut):
         os.mkdir(dirOut)
     if vmax==None:
@@ -646,30 +888,34 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
     dirData='data/',minzoom=10,pngSize=3000,thumbOut=None,margins=None,
     thumbSize=300,title=None,RAcen=0,grid=False,addCredit=True,addLogos=False,notext=True,
     plotbounds=True,plotlines=True,plotlabels=True,border=None,lw=1,fontsize=10):
-    # ev: superevent ID [default='S190412m']
-    # mapIn: map to read in (filename [string] or HEALPix map). [Default=None]. If not provided, tries to get event with superevent ID provided in <ev> from GraceDB
-    # proj: projection (moll=Mollweide [Default], cart=Cartesian)
-    # plotcont: set to plot contours (default=False)
-    # smooth: degrees to smooth probability densith map to get contours. 0=no smoothing. [Default=0.5deg]
-    # zoomlim: probability to zoom map in to (cartview only). Default=0.92
-    # rotmap: rotate map to centre on peak value [Default=False]
-    # half_sky: only show half the sky (orthographic only)
-    # pngOut: filename to export to PNG [Default=None -> no export]
-    # pngSize: width of output image [default=3000px]
-    # thumbOut: filename to export to thumbnail PNG [Default=None -> no export]
-    # thumbSize: width of output image [default=100px]
-    # verbose: plot more text [Default=False]
-    # cbg: background colour [Default=black]
-    # dirData: directory to load files from [Default= 'data/']
-    # minzoom: minimum map radius, in degrees (proj=cart & zoomlim!=None only) [Default=10]
-    # title: Title to plot on image (optional string) [Default = <ev>]
-    # RAcen: Centre RA (Default=0; applies only if rotmap not set)
-    # grid: set to plot grid (Default=False)
-    # addCredit: set to plot credit line (Default=True)
-    # plotbounds: set to plot constellation boundaries (default=True)
-    # plotlabels: set to plot constellation labels (default=True)
-    # plotlines: set to plot constellation liness (default=True)
-    
+    """make tileset using python script
+    Inputs:
+        * ev [string, optional]: superevent ID to read if no map provided. Default='S190412m'
+        * mapIn [string or array, optional]: map to read in (filename [string] or HEALPix map). If not provided, tries to get event with superevent ID provided in ev from GraceDB. Default=None (load superevent)
+        * proj [string, optional]: projection (moll=Mollweide [Default], cart=Cartesian)
+        * plotcont [boolean, optional]: set to plot contours (default=False)
+        * smooth [float, optional]: degrees to smooth probability densith map to get contours. 0=no smoothing. [Default=0.5deg]
+        * zoomlim [float, optional]: probability to zoom map in to (cartview only). Default=0.92
+        * rotmap [boolean, optional]: rotate map to centre on peak value [Default=False]
+        * half_sky [boolean, optional]: only show half the sky (orthographic only). Default=False
+        * pngOut [string, optional]: filename to export to PNG. Default=None (no export)
+        * pngSize [integer, optional]: width of output image in pixels [default=3000]
+        * thumbOut [string, optional]: filename to export to thumbnail PNG. Default=None (-> no export)
+        * thumbSize [integer, optional]: width of output thumbnail image in pixels. Default=100
+        * verbose [boolean, optional]: set to for verbose output. Default=False
+        * cbg [string, optional]: background colour [Default=black]
+        * dirData [string, optional]: directory to load files from [Default= 'data/']
+        * minzoom [float, optional]: minimum map radius, in degrees (proj=cart & zoomlim!=None only) [Default=10]
+        * title [string, optional]: Title to plot on image (optional string) [Default = <ev>]
+        * RAcen [string, optional]: Centre RA (Default=0; applies only if rotmap not set)
+        * grid [boolean, optional]: set to plot grid (Default=False)
+        * addCredit [boolean, optional]: set to plot credit line (Default=True)
+        * plotbounds [boolean, optional]: set to plot constellation boundaries (default=True)
+        * plotlabels [boolean, optional]: set to plot constellation labels (default=True)
+        * plotlines [boolean, optional]: set to plot constellation liness (default=True)
+    Outputs:
+        * [array] map that was plotted
+    """
     if type(mapIn)==type(None):
         event=getSuperevent(ev,verbose=verbose)
         event['mapfile_local']=fileOut='{}_{}'.format(ev,event['mapfile'][0])
@@ -758,6 +1004,12 @@ def makePlot(ev='S190412m',mapIn=None,proj='moll',plotcont=False,smooth=0.5,zoom
 
 ###########################
 def plotall():
+    """test script to plot lots of maps from superevents
+    Inputs:
+        * None
+    Outputs:
+        * None
+    """
     evs=['S190421ar']
     evs=[]
     try:
@@ -773,5 +1025,3 @@ def plotall():
         makePlot(ev=ev,mapIn=map,proj='moll',plotcont=False,smooth=0.5,zoomlim=None,rotmap=False,verbose=True,pngOut='png/{}_moll.png'.format(ev),cbg='w')
         # map = makePlot(ev=ev,proj='orth',plotcont=False,smooth=0.5,zoomlim=None,rotmap=True,half_sky=True,verbose=True,pngOut='png/{}_orth.png'.format(ev))
     plot.show()
-
-
