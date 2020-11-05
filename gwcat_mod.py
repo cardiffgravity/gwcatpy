@@ -439,8 +439,10 @@ class GWCat(object):
                         else:
                             bprec=sigfig
                         mult=10**(-bprec)
-                        newlow=np.round(newParam['err'][0]*mult)/mult
-                        newhigh=np.round(newParam['err'][1]*mult)/mult
+                        newlow=setPrec(newParam['err'][0],bprec+extraprec)
+                        newhigh=setPrec(newParam['err'][1],bprec+extraprec)
+                        # newlow=np.round(newParam['err'][0]*mult)/mult
+                        # newhigh=np.round(newParam['err'][1]*mult)/mult
                         newerr=[newlow,newhigh]
                         # for e in range(len(newParam['err'])):
                         #     newerr.append(setPrec(newParam['err'][e],sigfig))
