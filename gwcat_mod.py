@@ -164,7 +164,7 @@ def getManual(loc='',verbose=True,export=False,
         fOut.close()
     return mandata
 
-def setPrec(v,prec):
+def setPrec(v,prec,verbose=False):
     """Set precision of variable
     Inputs:
         * v [float]: value to set precision of
@@ -175,6 +175,7 @@ def setPrec(v,prec):
     if prec:
         precstr='{:.'+'{}'.format(prec)+'g}'
     else:precstr='{}'
+    if verbose:print('setting precision of {} using format string {}',format(v,prec))
     return float(precstr.format(v))
 
 class GWCat(object):
@@ -439,8 +440,8 @@ class GWCat(object):
                         else:
                             bprec=sigfig
                         mult=10**(-bprec)
-                        newlow=setPrec(newParam['err'][0],bprec+extraprec)
-                        newhigh=setPrec(newParam['err'][1],bprec+extraprec)
+                        newlow=setPrec(newParam['err'][0],bprec+extraprec,verbose=verbose)
+                        newhigh=setPrec(newParam['err'][1],bprec+extraprec,verbose=verbose)
                         # newlow=np.round(newParam['err'][0]*mult)/mult
                         # newhigh=np.round(newParam['err'][1]*mult)/mult
                         newerr=[newlow,newhigh]
