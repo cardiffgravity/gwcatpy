@@ -175,7 +175,7 @@ def setPrec(v,prec,verbose=False):
     if prec:
         precstr='{:.'+'{}'.format(prec)+'g}'
     else:precstr='{}'
-    if verbose:print('setting precision of {} using format string {}',format(v,prec))
+    if verbose:print('setting precision of {} with precision using format string {}'.format(v,prec,precstr))
     return float(precstr.format(v))
 
 class GWCat(object):
