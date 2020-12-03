@@ -1396,6 +1396,11 @@ class GWCat(object):
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFile,verbose=verbose,res=res)
                 self.addLink(ev,{'url':self.rel2abs(gravFile),'text':gravLinktxt,
                     'type':'skymap-plain','created':Time.now().isot})
+            else:
+                # update link
+                print('updatelink Gravoscope (Galactic, 8192) link for {}'.format(ev))
+                self.addLink(ev,{'url':self.rel2abs(gravFile),'text':gravLinktxt,
+                    'type':'skymap-plain','created':Time.now().isot})
                     
             updateGravEq=False
             gravFileEq=os.path.join(gravDir,'{}_{}_eq.png'.format(ev,gravNpix))
@@ -1413,6 +1418,11 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial) for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq,verbose=verbose,res=res,coord='C')
+                self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
+                    'type':'skymap-plain','created':Time.now().isot})
+            else:
+                # update link
+                print('updatelink Gravoscope (Equatorial, 8192) link for {}'.format(ev))
                 self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
                     'type':'skymap-plain','created':Time.now().isot})
             
@@ -1434,6 +1444,12 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial, 4096) for {} ({}x{})'.format(ev,gravNpix4096,int(gravNpix4096/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq4096,verbose=verbose,res=res4096,coord='C')
+                self.addLink(ev,{'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
+                    'type':'skymap-plain','created':Time.now().isot})
+            else:
+                # update Link
+                if verbose:
+                    print('updatelink Gravoscope (Equatorial, 4096) link for {}'.format(ev))
                 self.addLink(ev,{'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
                     'type':'skymap-plain','created':Time.now().isot})
 
