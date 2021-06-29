@@ -164,7 +164,7 @@ def getManual(loc='',verbose=True,export=False,
         fOut.close()
     return mandata
 
-def setPrec(v,prec,verbose=False):
+def setPrec(v,prec):
     """Set precision of variable
     Inputs:
         * v [float]: value to set precision of
@@ -175,7 +175,6 @@ def setPrec(v,prec,verbose=False):
     if prec:
         precstr='{:.'+'{}'.format(prec)+'g}'
     else:precstr='{}'
-    if verbose:print('setting precision of {} with precision {} using format string {}'.format(v,prec,precstr))
     return float(precstr.format(v))
 
 class GWCat(object):
@@ -420,7 +419,6 @@ class GWCat(object):
                     assert(newParam)
                     assert p in self.datadict
                     assert 'sigfig' in self.datadict[p]
-                    # if verbose:print('setting precision for {}[{}]'.format(ev,p))
                 except:
                     # if verbose:print('unable to set precision for {}[{}]'.format(ev,p))
                     continue
@@ -438,13 +436,11 @@ class GWCat(object):
                     if 'err' in newParam:
                         if newbest!=0:
                             bprec=np.floor(np.log10(np.abs(newbest)))+1-(sigfig+extraprec)
-                            mult=10**(-bprec)
-                            newlow=np.round(newParam['err'][0]*mult)/mult
-                            newhigh=np.round(newParam['err'][1]*mult)/mult
                         else:
                             bprec=sigfig
-                            newlow=setPrec(newParam['err'][0],bprec+extraprec,verbose=False)
-                            newhigh=setPrec(newParam['err'][1],bprec+extraprec,verbose=False)
+                        mult=10**(-bprec)
+                        newlow=np.round(newParam['err'][0]*mult)/mult
+                        newhigh=np.round(newParam['err'][1]*mult)/mult
                         newerr=[newlow,newhigh]
                         # for e in range(len(newParam['err'])):
                         #     newerr.append(setPrec(newParam['err'][e],sigfig))
@@ -459,7 +455,7 @@ class GWCat(object):
                 self.data[ev][p]=newParam
         return
         
-    def importGWTC(self,gwtcIn,verbose=False,devMode=False):
+    def importGWTC(self,gwtcIn,verbose=False,devMode=False,forceOverwrite=False,catalog='GWTC'):
         """import GWTC data into catalogue. Uses gwosc.gwtc_to_cat to convert.
         Updates H5 source file.
         Convert to dataframe
@@ -467,15 +463,30 @@ class GWCat(object):
             * gwtcIn [object]: event data
             * verbose [boolean, optional]: set for verbose output. Default=False
             * devMode [boolean, optional]: set to fix DCC link for dev mode. Default=False.
+            * forceOverwrite [boolean, optional: set to force overwrite of events with earlier version numbers
+            * catalog [string, optional]: catalog to read from. Default=GWTC.
         Outputs:
             * None
         """
         print('*** Importing GWTC Catalog...')
-        catData=gwosc.gwtc_to_cat(gwtcIn,self.datadict,verbose=verbose,devMode=self.devMode)
+        catData=gwosc.gwtc_to_cat(gwtcIn,self.datadict,verbose=verbose,devMode=self.devMode,catalog=catalog)
         for ev in catData['data']:
             # get old metadata
             dmeta={}
             if ev in self.data:
+                verEx=self.getParameter(ev,'version')
+                verNew=catData['data'][ev]['version']
+                if (verNew) and (verEx):
+                    if (verNew <= verEx):
+                        if forceOverwrite:
+                            print('Forcing replacement of  {} v{} with v{}'.format(ev,verEx,verNew))
+                        else:
+                            if verbose:
+                                print('Not replacing {} v{} with v{}'.format(ev,verEx,verNew))
+                            continue
+                    else:
+                        if verbose:
+                            print('Updating {} v{} with v{}'.format(ev,verEx,verNew))
                 if 'meta' in self.data[ev]:
                     dmeta=self.data[ev]['meta']
             self.data[ev]=catData['data'][ev]
@@ -486,16 +497,16 @@ class GWCat(object):
             if ev in catData['links']:
                 for l in catData['links'][ev]:
                     self.addLink(ev,l,verbose=verbose)
-            self.updateStatus(ev,verbose=verbose,desc='GWTC Catalog import')
+            self.updateStatus(ev,verbose=verbose,desc='{} Catalog import'.format(catalog))
         for ev in catData['links']:
             self.updateH5Src(ev,verbose=False)
             self.updateStatus(ev,verbose=False,desc='Data file src')
         self.evTimes = self.getTimestamps()
         self.json2dataframe(verbose=verbose)
-        if not 'GWTC' in self.meta:
-            self.meta['GWTC']={}
+        if not catalog in self.meta:
+            self.meta[catalog]={}
         for m in gwtcIn['meta']:
-            self.meta['GWTC'][m]=gwtcIn['meta'][m]
+            self.meta[catalog][m]=gwtcIn['meta'][m]
                         
         return
         
@@ -742,7 +753,11 @@ class GWCat(object):
                 except:
                     if verbose:print('no local data file for {}'.format(ev))
                     continue
-                newparams=self.getH5Params(ev,verbose=verbose)
+                if 'approximant' in self.status[ev]:
+                    approx=self.status[ev]['approximant']
+                else:
+                    approx=None
+                newparams=self.getH5Params(ev,approx=approx,verbose=verbose)
                 if (newparams):
                     for p in newparams:
                         if (p in self.data[ev]):
@@ -758,6 +773,8 @@ class GWCat(object):
                             print('adding {}[{}]:{}'.format(ev,p,newparams[p]))
                     stat={'h5dateloaded':Time.now().isot,
                         'h5verloaded':self.data[ev]["version"]}
+                    if 'approximant' in newparams:
+                        stat['approximant']=newparams['approximant']
                     self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='h5 data loaded')
                 else:
                     if verbose: print('no parameters from H5 for {}'.format(ev))
@@ -846,16 +863,18 @@ class GWCat(object):
             return h5req.status_code
         return(0)
         
-    def extractTar(self,ev,verbose=False):
+    def extractTar(self,ev,statusid='tarurllocal',maponly=False,verbose=False):
         """Extract h5 and map file from tarfile
         Inputs:
             * ev [string]: event name
+            * statusid [string, optional]: id in status file to identify tar file
+            * maponly [boolean, optional]: set to only extract the map file. Default=False
             * verbose [boolean, optional]: set for verbose output. Default=False
         Outputs:
             * [number] HTTP status code if unsuccessful. 0 if not. 
         """
         import tarfile
-        tarFile=self.status[ev]['tarurllocal']
+        tarFile=self.status[ev][statusid]
         tarF=tarfile.open(tarFile)
         tarNames=tarF.getnames()
         # get first file with _comoving.h5
@@ -870,21 +889,22 @@ class GWCat(object):
         out={}
         
         # extract h5 to h5 directory tarfile
-        h5Dir=os.path.join(self.dataDir,'h5')
-        try:
-            tarF.extract(h5name,path=h5Dir)
-            h5File=os.path.join(h5Dir,h5name)
-            if (verbose): print('Extracted h5 file to {}'.format(h5File))
-            # save location of h5 file to status
-            stat={'h5urllocal':h5File,
-                'h5datelocal':Time.now().isot,
-                'h5verlocal':self.data[ev]["version"],
-                'h5versrc':self.data[ev]["version"],
-                'h5urlsrc':self.status[ev]["tarurlsrc"]}
-            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='h5 file local')
-            out['h5']=h5File
-        except:
-            pass
+        if not maponly:
+            h5Dir=os.path.join(self.dataDir,'h5')
+            try:
+                tarF.extract(h5name,path=h5Dir)
+                h5File=os.path.join(h5Dir,h5name)
+                if (verbose): print('Extracted h5 file to {}'.format(h5File))
+                # save location of h5 file to status
+                stat={'h5urllocal':h5File,
+                    'h5datelocal':Time.now().isot,
+                    'h5verlocal':self.data[ev]["version"],
+                    'h5versrc':self.data[ev]["version"],
+                    'h5urlsrc':self.status[ev]["tarurlsrc"]}
+                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='h5 file local')
+                out['h5']=h5File
+            except:
+                pass
             
         # extract fits to fits directory
         fitsDir=os.path.join(self.dataDir,'fits')
@@ -964,16 +984,17 @@ class GWCat(object):
             return
         return
         
-    def getH5Params(self,ev,verbose=False):
+    def getH5Params(self,ev,approx=None,verbose=False):
         """Get parameters from H5 file for GWTC-2. Uses comparison of parameter to select best approximant if default isn't available.
         Inputs:
             * ev [string]: event name
+            * approx [string, optional]: approximant to try first
             * verbose [boolean, optional]: set for verbose output. Default=False
         Outputs:
             * [object] dict containing new parameters. None if not GWTC2
         """
-        if self.getParameter(ev,'catalog')!='GWTC-2':
-            if verbose:print('not GWTC-2')
+        if self.getParameter(ev,'catalog')!='GWTC-2' and self.getParameter(ev,'catalog')!='O3_Discovery_Papers':
+            if verbose:print('not GWTC-2 or O3_Discovery_Papers')
             newparams=None
         else:
             newparams={}
@@ -988,7 +1009,7 @@ class GWCat(object):
                 h5File=self.status[ev]['h5urllocal']
             except:
                 if verbose:print('no local data file for {}'.format(ev))
-            newparams=gwosc.geth5paramsGWTC2(h5File,pcheck={'M1':m1check},datadict=self.datadict,verbose=verbose)
+            newparams=gwosc.geth5paramsGWTC2(h5File,pcheck={'M1':m1check},datadict=self.datadict,approx=approx,verbose=verbose)
             # if verbose:print(newparams)
         return(newparams)
         
@@ -1117,12 +1138,24 @@ class GWCat(object):
             except:
                 print('ERROR: Problem loading map:',mapreq.status_code)
                 return mapreq.status_code
+                
+        if lmap[0].get('filetype','')=='tar':
+            print('NEED TO EXTRACT TARBALL')
+            stat={'maptarurllocal':fitsFile,
+                'maptarurlsrc':url,
+                'maptardatelocal':Time.now().isot,
+                'maptardatesrc':Time(os.path.getmtime(fitsFile),format='unix').isot,
+                'maptarverlocal':self.data[ev]["version"],
+                'maptarversrc':self.data[ev]["version"]}
+            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='tar file local (map)')
+            tarout=self.extractTar(ev,statusid='maptarurllocal',maponly=True,verbose=verbose)
+            fitsFile=tarout['map']
         try:
             hdr=fits.getheader(fitsFile,ext=1)
             self.data[ev]['meta']['mapurllocal']=fitsFile
-            self.data[ev]['meta']['mapdatelocal']=hdr['DATE']
+            self.data[ev]['meta']['mapdatelocal']=Time.now().isot
             stat={'mapurllocal':fitsFile,
-                'mapdatelocal':hdr['DATE']}
+                'mapdatelocal':Time.now().isot}
             if 'version' in self.data[ev]:
                 stat['mapverlocal']=self.data[ev]["version"]
                 stat['mapversrc']=self.data[ev]["version"]
@@ -1396,11 +1429,6 @@ class GWCat(object):
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFile,verbose=verbose,res=res)
                 self.addLink(ev,{'url':self.rel2abs(gravFile),'text':gravLinktxt,
                     'type':'skymap-plain','created':Time.now().isot})
-            else:
-                # update link
-                print('updatelink Gravoscope (Galactic, 8192) link for {}'.format(ev))
-                self.addLink(ev,{'url':self.rel2abs(gravFile),'text':gravLinktxt,
-                    'type':'skymap-plain','created':Time.now().isot})
                     
             updateGravEq=False
             gravFileEq=os.path.join(gravDir,'{}_{}_eq.png'.format(ev,gravNpix))
@@ -1418,11 +1446,6 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial) for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq,verbose=verbose,res=res,coord='C')
-                self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
-                    'type':'skymap-plain','created':Time.now().isot})
-            else:
-                # update link
-                print('updatelink Gravoscope (Equatorial, 8192) link for {}'.format(ev))
                 self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
                     'type':'skymap-plain','created':Time.now().isot})
             
@@ -1444,12 +1467,6 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial, 4096) for {} ({}x{})'.format(ev,gravNpix4096,int(gravNpix4096/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq4096,verbose=verbose,res=res4096,coord='C')
-                self.addLink(ev,{'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
-                    'type':'skymap-plain','created':Time.now().isot})
-            else:
-                # update Link
-                if verbose:
-                    print('updatelink Gravoscope (Equatorial, 4096) link for {}'.format(ev))
                 self.addLink(ev,{'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
                     'type':'skymap-plain','created':Time.now().isot})
 
@@ -1507,40 +1524,11 @@ class GWCat(object):
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
             filename=self.status[ev]['mapurllocal']
             gravLinktxt='Gravoscope tileset'
+            tileFile=os.path.join(gravDir,'{}-tiles/{}.png'.format(ev,'ttrtttttt'[0:maxres+1]))
             tilesLinktype='gravoscope-tiles'
             tilesLink=self.getLink(ev,tilesLinktype,srchtype='type')
             tilesLinkIdx=self.getLink(ev,tilesLinktype,srchtype='type',retIdx=True)
             updateTiles=False
-            if len(tilesLink)>0:
-                # link is present
-                if 'created' in tilesLink[0]:
-                    timeTiles=Time(tilesLink[0]['created'])
-                    if timeTiles.gps < fitsCreated.gps-1:
-                        # tiles are older than map
-                        if verbose: print('tiles for {} exists, but are older than map. {} < {}; {} < {}'.format(ev,timeTiles,fitsCreated,timeTiles.gps,fitsCreated.gps))
-                        updateTiles=True
-                    else:
-                        # tiles are newer than map
-                        if verbose: print('tiles for {} exists, and are newer than map. {} > {}; {} > {}'.format(ev,timeTiles,fitsCreated,timeTiles.gps,fitsCreated.gps))
-                else:
-                    # no created date. remove link and regenerate tiles (just in case)
-                    if verbose: print('No created date for tiles link for {}. Regenerating all tiles'.format(ev))
-                    self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
-                        'type':'gravoscope-tiles','created':fitsCreated.isot})
-                    updateTiles=True
-                if updateLink:
-                    # update link (but don't necessarily recreate tiles)
-                    if verbose: print('replacing old link for Gravoscope tileset for {}'.format(ev))
-                    self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
-                        'type':'gravoscope-tiles','created':fitsCreated.isot})
-            else:
-                # no link. Need to add link and regenerate tiles
-                if verbose: print('adding tiles link for Gravoscope tileset for {}'.format(ev))
-                gravLinktxt='Gravoscope tileset'
-                self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
-                    'type':'gravoscope-tiles','created':fitsCreated.isot})
-                updateTiles=True
-            tileFile=os.path.join(gravDir,'{}-tiles/{}.png'.format(ev,'ttrtttttt'[0:maxres+1]))
             if not os.path.isfile(tileFile):
                 if verbose: print('file {} does not exist'.format(tileFile))
                 updateTiles=True
@@ -1549,6 +1537,33 @@ class GWCat(object):
                 updateTiles=True
             else:
                 if verbose: print('file {} exists'.format(tileFile))
+            if not updateTiles:
+                # file exists, but need to check date
+                timeTiles=Time(os.path.getmtime(tileFile),format='unix')
+                if timeTiles.gps < fitsCreated.gps-1:
+                    # tiles are older than map
+                    if verbose: print('tiles for {} exists, but are older than map. {} < {}; {} < {}'.format(ev,timeTiles.isot,fitsCreated,timeTiles.gps,fitsCreated.gps))
+                    updateTiles=True
+                else:
+                    # tiles are newer than map
+                    if verbose: print('tiles for {} exists, and are newer than map. {} > {}; {} > {}'.format(ev,timeTiles.isot,fitsCreated,timeTiles.gps,fitsCreated.gps))
+                    if updateLink:
+                        # update link (but don't necessarily recreate tiles)
+                        if verbose: print('replacing old link for Gravoscope tileset for {}'.format(ev))
+                        self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
+                            'type':'gravoscope-tiles','created':timeTiles.isot})
+                if len(tilesLink)>0:
+                    if not 'created' in tilesLink[0]:
+                        # no created date. recreate link
+                        if verbose: print('No created date for tiles link for {}. Regenerating all tiles'.format(ev))
+                        self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
+                            'type':'gravoscope-tiles','created':timeTiles.isot})
+                else:
+                    # no link. Need to add link
+                    if verbose: print('adding tiles link for Gravoscope tileset for {}'.format(ev))
+                    gravLinktxt='Gravoscope tileset'
+                    self.addLink(ev,{'url':self.rel2abs(tilesDir,url=tilesurl),'text':gravLinktxt,
+                        'type':'gravoscope-tiles','created':fitsCreated.isot})
             res=8
             gravNpix=int(8*1024)
 

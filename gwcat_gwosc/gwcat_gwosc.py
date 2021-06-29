@@ -2,6 +2,21 @@ from astropy.time import Time
 import os
 import numpy as np
 
+def cat2url(cat,devMode=False):
+    roots={'dev':'https://openscience-dev.ligo.caltech.edu/eventapi/json/',
+        'public':'https://www.gw-openscience.org/eventapi/json/'
+    }
+    catlist=['GWTC','O3_Discovery_Papers']
+    if not cat in catlist:
+        print('WARNING: catalog {} not valid.'.format(cat))
+        url=''
+    else:
+        if devMode:
+            url=roots['dev']+cat
+        else:
+            url=roots['public']+cat
+    return url
+    
 def gps2obsrun(GPS):
     """Convert GPS to observing run
     Inputs:
@@ -32,10 +47,10 @@ def getGwosc(url='',verbose=True,export=False,dirOut=None,fileOut=None,indent=2,
     out=getGWTC(url=url,verbose=verbose,export=export,dirOut=dirOut,fileOut=fileOut,indent=indent,triggers=triggers)
     return(out)
 
-def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False,devMode=False,sess=None):
+def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=None,indent=2,triggers=False,devMode=False,catalog='GWTC',sess=None):
     """Get GWTC from GWOSC json files and add parameters.
     Inputs:
-        * url [string, optional]: URL to download from. Default=https://www.gw-openscience.org/eventapi/json/GWTC/
+        * url [string, optional]: URL to download from. Default=https://www.gw-openscience.org/eventapi/html/GWTC-1-confident/
         * useLocal [boolean, optional]: Set to use local files (default URL=data/local-mirror/GWTC-dev.json)
         * verbose [boolean, optional]: set for verbose output. Default=False
         * export [boolean, optional]: set for export to JSON file output. Default=False
@@ -44,6 +59,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         * indent [integer, optional]: json indent for exported file. Default=2
         * triggers [boolean, optional]: OBSOLETE
         * devMode [boolean, optional]: set to ciecplib to access data, and use dev link as default (https://openscience-dev.ligo.caltech.edu/eventapi/json/GWTC/)
+        * catalog [string, optional]: catalog to read from. Default=GWTC.
         * sess [ciecplib.Session, optional]: ciecplib session to use in dev mode. Default=None (creates new one)
     Outputs:
         * [object] object containing data (can be read by gwcatpy.importGWTC)
@@ -53,13 +69,14 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
     import h5py
     import ciecplib
     if url=='':
-        if devMode:
-            url='https://openscience-dev.ligo.caltech.edu/eventapi/json/GWTC/'
-        elif useLocal:
-            url='data/local-mirror/GWTC-dev.json'
-        else:
-            url='https://www.gw-openscience.org/eventapi/json/GWTC/'
-    if verbose: print('Retrieving GWTC data from {}'.format(url))
+        url=cat2url(catalog,devMode=devMode)
+        # if devMode:
+        #     url='https://openscience-dev.ligo.caltech.edu/eventapi/json/GWTC/'
+        # elif useLocal:
+        #     url='data/local-mirror/GWTC-dev.json'
+        # else:
+        #     url='https://www.gw-openscience.org/eventapi/json/GWTC/'
+    if verbose: print('Retrieving {} data from {}'.format(catalog,url))
     if devMode:
         if not sess:
             sess=ciecplib.Session("LIGO")
@@ -95,8 +112,9 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             jsonurl=gwtcdata['data'][ev]['jsonurl']
             # ***replace with local version***
             jsonurllocal='data/local-mirror/{}-v{}.json'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'])
-            gwtcdata['data'][ev]['jsonurl_local']=jsonurllocal
             if useLocal: 
+                # fudge for local mirrors
+                gwtcdata['data'][ev]['jsonurl_local']=jsonurllocal
                 if gwtcdata['data'][ev]['catalog.shortName']=='GWTC-1-confident':
                     jsonurl=jsonurl.replace('https://openscience-dev.ligo.caltech.edu/','https://www.gw-openscience.org/')
                 if gwtcdata['data'][ev]['catalog.shortName']=='GWTC-2':
@@ -128,15 +146,23 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                 if evdata['catalog.shortName']=='GWTC-1-confident':
                     petag='gwtc1_pe_{}'.format(evdata['commonName'])
                 elif evdata['catalog.shortName']=='GWTC-2':
-                    petag='gwtc2_pe_{}'.format(evdata['commonName'])
+                    petag='gwtc2_pe_7{}'.format(evdata['commonName'])
+                elif evdata['catalog.shortName']=='O3_Discovery_Papers':
+                    petag='O3_Discovery_Papers_{}_R2_pe_combined'.format(evdata['commonName'])
                 else:
                     petag='UNKNOWN'
+                if not petag in evdata['parameters']:
+                    petagbest=getBestParam(evdata,{'M1':None},{'mass_1_source':'M1'},verbose=verbose)
+                    if petagbest:
+                        petag=petagbest
                 if petag in evdata['parameters']:
                     params=evdata['parameters'][petag]
+                    gwtcdata['data'][ev]['parameter_tag']=petag
                     if 'data_url' in params:
                         data_url=params['data_url']
                         gwtcdata['data'][ev]['data_link']=data_url
-                        gwtcdata['data'][ev]['data_link_local']='data/local-mirror/{}-v{}.{}'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'],data_url.split('.')[-1])
+                        if useLocal:
+                            gwtcdata['data'][ev]['data_link_local']='data/local-mirror/{}-v{}.{}'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'],data_url.split('.')[-1])
             if 'strain' in evdata:
                 gwtcdata['data'][ev]['strain']=evdata['strain']
     
@@ -144,7 +170,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         if dirOut==None:
             dirOut='data/'
         if fileOut==None:
-            fileOut='gwtc.json'
+            fileOut=catalog+'.json'
         if verbose: print('Exporting to {}'.format(os.path.join(dirOut,fileOut)))
         fOut=open(os.path.join(dirOut,fileOut),'w')
         json.dump(gwtcdata,fOut,indent=indent)
@@ -153,13 +179,14 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
     if verbose: print('Retrieved data for {} events'.format(len(gwtcdata['data'])))
     return gwtcdata
 
-def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False):
+def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
     """Convert GWTC data to gwcat format.
     Inputs:
         * gwtcdata [object]: GWTC data (from getGWTC)
         * datadict [object]: Data dictionary (i.e. parameters)
         * verbose [boolean, optional]: set for verbose output. Default=False
         * devMode [boolean, optional]: set to use dev mode; replace "public/" in DCC links with "DocDB"
+        * catalog [string, optional]: catalog to read from. Default=GWTC.
     Outputs:
         * [object] object containing 'data' and 'links'
     """
@@ -170,9 +197,13 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False):
     else:
         gwtcin=gwtcdata
     try:
-        url=['meta']['url']
+        url=gwtcdata['meta']['src']
     except:
-        url='https://openscience-dev.ligo.caltech.edu/eventapi/json/GWTC/'
+        url=cat2url(catalog,devMode=devMode)
+        # if devMode:
+        #     url='https://openscience-dev.ligo.caltech.edu/eventapi/json/GWTC/'
+        # else:
+        #     url='https://gw-openscience.org/eventapi/json/GWTC/'
     catOut={}
     linksOut={}
     conv={
@@ -219,50 +250,23 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False):
                 catOut[e][convsnr[c]]=param
                 # catOut[e][convsnr[c]]['src']=psnrname
         
-        if gwtcin[e]['catalog.shortName']=='GWTC-1-confident':
-            pname='gwtc1_pe_{}'.format(catOut[e]['name'])
-            pycbcname='gwtc1_pycbc_{}'.format(catOut[e]['name'])
-            gstlalname='gwtc1_gstlal_{}'.format(catOut[e]['name'])
-            cwbname='gwtc1_cwb_{}'.format(catOut[e]['name'])
-        elif gwtcin[e]['catalog.shortName']=='GWTC-2':
-            pname='gwtc2_pe_{}'.format(catOut[e]['name'])
-            pycbcname='gwtc2_pycbc_allsky_{}'.format(catOut[e]['name'])
-            gstlalname='gwtc2_gstlal_allsky_{}'.format(catOut[e]['name'])
-            cwbname='gwtc2_cwb_allsky_{}'.format(catOut[e]['name'])
-        else:
-            pname='UNKNOWN'
-            pycbcname='UNKNOWN'
-            gstlalname='UNKNOWN'
-            cwbname='UNKNOWN'
-        if pycbcname in gwtcin[e]['parameters']:
-            psnrname=pycbcname
-        elif gstlalname in gwtcin[e]['parameters']:
-            psnrname=gstlalname
-        elif cwbname in gwtcin[e]['parameters']:
-            psnrname=cwbname
-        else:
-            psnrname='UNKNOWN'
+        pname=gwtcin[e].get('parameter_tag','UNKNOWN')
         if pname in gwtcin[e]['parameters']:
-            for c in conv:
-                pdict=None
-                if conv[c] in datadict:
-                    pdict=datadict[conv[c]]
-                param=paramConv(gwtcin[e]['parameters'][pname],c,pdict,verbose=verbose)
-                if (param):
-                    catOut[e][conv[c]]=param
-        # if psnrname in gwtcin[e]['parameters']:
-        #     for c in convsnr:
-        #         pdict=None
-        #         if conv[c] in datadict:
-        #             pdict=datadict[conv[c]]
-        #         param=paramConv(gwtcin[e]['parameters'][psnrname],c,pdict,verbose=verbose)
-        #         if (param):
-        #             catOut[e][conv[c]]=param
-        #             catOut[e][conv[c]]['src']=psnrname
-            # if 'far' in gwtcin[e]['parameters'][pycbcname]:
-            #     catOut[e]['FAR']={'best':gwtcin[e]['parameters'][pycbcname]['far']}
-            # if 'far' in gwtcin[e]['parameters'][pycbcname]:
-            #     catOut[e]['FAR']={'best':gwtcin[e]['parameters'][pycbcname]['far']}
+            if verbose:
+                print('reading parameters from {}'.format(pname))
+            paramIn=gwtcin[e]['parameters'][pname]
+        else:
+            if verbose:
+                print('cannot find {} parameters. Using root parameters')
+            paramIn=gwtcin[e]
+        for c in conv:
+            pdict=None
+            if conv[c] in datadict:
+                pdict=datadict[conv[c]]
+            param=paramConv(paramIn,c,pdict,verbose=verbose)
+            if (param):
+                catOut[e][conv[c]]=param
+
         catOut[e]['obsrun']={'best':gps2obsrun(gwtcin[e]['GPS'])}
         if verbose:print('GPS={} ; obsrun={}'.format(gwtcin[e]['GPS'],catOut[e]['obsrun']))
         catOut[e]['jsonURL']=gwtcin[e]['jsonurl']
@@ -330,16 +334,19 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False):
         dtOut=Time(dtIn,format='iso').isot
         catOut[e]['UTC']={'best':dtOut}
         catOut[e]['meta']={'retrieved':Time.now().isot,'src':url}
+        if 'parameter_tag' in gwtcin[e]:
+            catOut[e]['meta']['parameter_tag']=gwtcin[e]['parameter_tag']
         
     
     return ({'data':catOut,'links':linksOut})
     
-def geth5paramsGWTC2(h5File,pcheck={},datadict={},verbose=False):
+def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx='PublicationSamples',verbose=False):
     """Extract parameters from GWTC2 HDF (.h5) files using pesummary
     Inputs:
         * hfFile [string]: filename to read
         * pcheck [object, optional]: Object containing parameter:value (used to identify closest approximant)
         * datadict [object]: Object containing data dictionary
+        * approx [string, optional]: Approximant to try first (Detault="PublicationSamples")
         * verbose [boolean, optional]: set for verbose output. Default=False
     Outputs:
         * [object] object containing updated parameters
@@ -376,7 +383,10 @@ def geth5paramsGWTC2(h5File,pcheck={},datadict={},verbose=False):
         return({})
     if verbose:print('getting parameters from data file: {}'.format(h5File))
     approximants=h5dat.labels
-    thisapprox='PublicationSamples'
+    if approx:
+        thisapprox=approx
+    else:
+        thisapprox='PublicationSamples'
     if not thisapprox in approximants:
         if len(pcheck)>0:
             pcheckl=next(iter(pcheck.keys()))
@@ -399,7 +409,7 @@ def geth5paramsGWTC2(h5File,pcheck={},datadict={},verbose=False):
     
     # get more params
     h5samp=h5dat.samples_dict[thisapprox]
-    params={}
+    params={'approximant':thisapprox}
     for c in conv:
         if c in h5samp.parameters:
             params[c]=h5samp.median[c][0]
@@ -456,3 +466,30 @@ def paramConv(evdat,param,paramdict,verbose=False):
             pOut['err']=[evdat[plo],evdat[phi]]
 
     return(pOut)
+
+def getBestParam(gwtcin_e,datadict={'M1':None},conv={'mass_1_source':'M1'},verbose=False):
+    # find best-fit parameters
+    pnbest=''
+    c_chk='mass_1_source'
+    mchroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=verbose)['best']
+    pnames=[]
+    mchs=[]
+    pecomb=[]
+    for pn in gwtcin_e['parameters']:
+        pnames.append(pn)
+        pecomb.append(pn.find('pe_combined')>=0)
+        paramch=paramConv(gwtcin_e['parameters'][pn],c_chk,datadict[conv[c_chk]],verbose=verbose)
+        if paramch:
+            paramch=paramch['best']
+        else:
+            paramch=np.nan
+        mchs.append(paramch)
+    pnames=np.array(pnames)
+    pecomb=np.array(pecomb)
+    mchs=np.array(mchs)
+    finmch=np.isfinite(mchs)
+    if len(np.argwhere(pecomb))==1:
+        pnbest=pnames[np.argwhere(pecomb)][0][0]
+    elif len(mchs[finmch])>0:
+        pnbest=pnames[finmch][np.argmin(np.abs(mchs[finmch]-mchroot))]
+    return pnbest
