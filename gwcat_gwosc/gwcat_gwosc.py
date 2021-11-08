@@ -157,14 +157,17 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             evname=evdata['commonName']
             if 'parameters' in evdata:
                 gwtcdata['data'][ev]['parameters']=evdata['parameters']
-                if evdata['catalog.shortName']=='GWTC-1-confident':
-                    petag='gwtc1_pe_{}'.format(evdata['commonName'])
-                elif evdata['catalog.shortName']=='GWTC-2':
-                    petag='gwtc2_pe_7{}'.format(evdata['commonName'])
-                elif evdata['catalog.shortName']=='O3_Discovery_Papers':
-                    petag='O3_Discovery_Papers_{}_R2_pe_combined'.format(evdata['commonName'])
-                else:
-                    petag='UNKNOWN'
+                petag='UNKNOWN'
+                # if evdata['catalog.shortName']=='GWTC-1-confident':
+                #     petag='gwtc1_pe_{}'.format(evdata['commonName'])
+                # elif evdata['catalog.shortName']=='GWTC-2':
+                #     petag='gwtc2_pe_7{}'.format(evdata['commonName'])
+                # elif evdata['catalog.shortName']=='GWTC-2.1-confident':
+                #     petag='GWTC-2.1-confident_{}_R1_pe_combined'.format(evdata['commonName'])
+                # elif evdata['catalog.shortName']=='GWTC-3':
+                #     petag='GWTC-3-confident_{}_R1_pe_combined'.format(evdata['commonName'])
+                # elif evdata['catalog.shortName']=='O3_Discovery_Papers':
+                #     petag='O3_Discovery_Papers_{}_R2_pe_combined'.format(evdata['commonName'])
                 if not petag in evdata['parameters']:
                     petagbest=getBestParam(evdata,{'M1':None},{'mass_1_source':'M1'},verbose=verbose)
                     if petagbest:
@@ -493,14 +496,34 @@ def paramConv(evdat,param,paramdict,verbose=False):
 def getBestParam(gwtcin_e,datadict={'M1':None},conv={'mass_1_source':'M1'},verbose=False):
     # find best-fit parameters
     pnbest=''
+    # check whether dataset has is_preferred set and mass_1_source
+    for pn in gwtcin_e['parameters']:
+        if 'mass_1_source' in  gwtcin_e['parameters'][pn]:
+            if gwtcin_e['parameters'][pn].get('is_preferred','')=='true':
+                pnbest=pn
+                if verbose:
+                    print('found preferred PE parameters in {}'.format(pn))
+    if (pnbest):
+        return pnbest
+    
+    # compare mass_1_source and compare with "root" values
     c_chk='mass_1_source'
-    mchroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=verbose)['best']
+    mchroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=verbose)
+    if mchroot:
+        mchroot=mchroot['best']
+    else:
+        mchroot=np.nan
     pnames=[]
     mchs=[]
     pecomb=[]
+    pedates=[]
     for pn in gwtcin_e['parameters']:
         pnames.append(pn)
-        pecomb.append(pn.find('pe_combined')>=0)
+        pecomb.append(pn.find('pe')>=0)
+        if 'date_added' in gwtcin_e['parameters'][pn]:
+            pedates.append(Time(gwtcin_e['parameters'][pn]['date_added']).gps)
+        else:
+            pedates.append(np.nan)
         paramch=paramConv(gwtcin_e['parameters'][pn],c_chk,datadict[conv[c_chk]],verbose=verbose)
         if paramch:
             paramch=paramch['best']
@@ -508,11 +531,15 @@ def getBestParam(gwtcin_e,datadict={'M1':None},conv={'mass_1_source':'M1'},verbo
             paramch=np.nan
         mchs.append(paramch)
     pnames=np.array(pnames)
+    pedates=np.array(pedates)
     pecomb=np.array(pecomb)
     mchs=np.array(mchs)
     finmch=np.isfinite(mchs)
+    findates=np.isfinite(pedates)
     if len(np.argwhere(pecomb))==1:
         pnbest=pnames[np.argwhere(pecomb)][0][0]
+    elif len(pedates[findates])>0 and len(np.argwhere(pecomb))>0:
+        pnbest=pnames[pecomb][np.argmin(pedates[pecomb])]
     elif len(mchs[finmch])>0:
         pnbest=pnames[finmch][np.argmin(np.abs(mchs[finmch]-mchroot))]
     return pnbest
