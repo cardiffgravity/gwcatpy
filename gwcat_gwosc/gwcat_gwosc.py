@@ -269,7 +269,7 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             paramIn=gwtcin[e]['parameters'][pname]
         else:
             if verbose:
-                print('cannot find {} parameters. Using root parameters')
+                print('cannot find {} parameters. Using root parameters'.format(pname))
             paramIn=gwtcin[e]
         for c in conv:
             pdict=None
