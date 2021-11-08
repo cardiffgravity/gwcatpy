@@ -2,11 +2,22 @@ from astropy.time import Time
 import os
 import numpy as np
 
+catlist={'GWTC':{'type':'confident'},
+    'GWTC-1-confident':{'type':'confident'},
+    'GWTC-2':{'type':'confident'},
+    'GWTC-2.1-confident':{'type':'confident'},
+    'GWTC-3-confident':{'type':'confident'},
+    'O3_Discovery_Papers':{'type':'confident'},
+    'GWTC-1-marginal':{'type':'marginal'},
+    'GWTC-2-marginal':{'type':'marginal'},
+    'GWTC-2.1-marginal':{'type':'marginal'},
+    'GWTC-3-marginal':{'type':'marginal'},
+}
+    
 def cat2url(cat,devMode=False):
     roots={'dev':'https://openscience-dev.ligo.caltech.edu/eventapi/json/',
         'public':'https://www.gw-openscience.org/eventapi/json/'
     }
-    catlist=['GWTC','O3_Discovery_Papers']
     if not cat in catlist:
         print('WARNING: catalog {} not valid.'.format(cat))
         url=''
@@ -26,7 +37,8 @@ def gps2obsrun(GPS):
     """
     obsruns={'O1':[1126051217,1137254417],
         'O2':[1164556817,1187733618],
-        'O3':[1238112018,1269363618]}
+        'O3a':[1238112018,1253977218],
+        'O3b':[1256655618,1269363618]}
     obs=''
     for o in obsruns:
         if GPS > obsruns[o][0] and GPS < obsruns[o][1]:
