@@ -122,6 +122,8 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         # print(gwtcdata['data'][ev])
         if 'jsonurl' in gwtcdata['data'][ev]:
             jsonurl=gwtcdata['data'][ev]['jsonurl']
+            if devMode:
+                jsonurl=jsonurl.replace('https://www.gw-openscience.org','https://openscience-dev.ligo.caltech.edu')
             # ***replace with local version***
             jsonurllocal='data/local-mirror/{}-v{}.json'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'])
             if useLocal: 
