@@ -339,9 +339,18 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
                 datalinklocal['filetype']='unknown'
             linksOut[e].append(datalinklocal)
             
-        if catOut[e]['name'][0]=='G':
+        if catlist[catOut[e]['catalog']]['type']=='marginal':
+            catOut[e]['detType']={'best':'Marginal'}
+            catOut[e]['conf']={'best':'Marginal'}
+        elif catlist[catOut[e]['catalog']]['type']=='confident':
             catOut[e]['detType']={'best':'GW'}
             catOut[e]['conf']={'best':'GW'}
+        elif catOut[e]['name'][0]=='G':
+            catOut[e]['detType']={'best':'GW'}
+            catOut[e]['conf']={'best':'GW'}
+        else:
+            catOut[e]['detType']={'best':'Candidate'}
+            catOut[e]['conf']={'best':'Candidate'}
         dtIn=Time(gwtcin[e]['GPS'],format='gps')
         dtOut=Time(dtIn,format='iso').isot
         catOut[e]['UTC']={'best':dtOut}
