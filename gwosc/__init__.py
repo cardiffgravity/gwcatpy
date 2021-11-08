@@ -1,1 +1,0 @@
-from .gwosc import *
