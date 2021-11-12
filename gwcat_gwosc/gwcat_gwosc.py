@@ -1,12 +1,15 @@
 from astropy.time import Time
 import os
 import numpy as np
+import zenodo_get as zen
+import re
 
 catlist={'GWTC':{'type':'confident'},
     'GWTC-1-confident':{'type':'confident'},
     'GWTC-2':{'type':'confident'},
-    'GWTC-2.1-confident':{'type':'confident'},
-    'GWTC-3-confident':{'type':'confident'},
+    'GWTC-2.1-confident':{'type':'confident','zenodo':'5117703'},
+    # 'GWTC-2.1-confident':{'type':'confident'},
+    'GWTC-3-confident':{'type':'confident','zenodo':'5546663'},
     'O3_Discovery_Papers':{'type':'confident'},
     'GWTC-1-marginal':{'type':'marginal'},
     'GWTC-2-marginal':{'type':'marginal'},
@@ -115,11 +118,45 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         if ver>evvers[evname]['latest']:
             evvers[evname]['latest']=ver
     # print(evvers)
+    
     gwtcdata['data']={}
     for ev in evvers:
         print(ev,evvers[ev],evvers[ev]['vers'][evvers[ev]['latest']])
         gwtcdata['data'][ev]=gwtcin['events'][evvers[ev]['vers'][evvers[ev]['latest']]]
         # print(gwtcdata['data'][ev])
+        
+        # get zenodo
+        evcat=gwtcdata['data'][ev]['catalog.shortName']
+        zenFiles=[]
+        if 'zenodo' in catlist[evcat]:
+            if not 'zenFiles' in catlist[evcat]:
+                # (re)download zenodo file list
+                zenFileList=os.path.join(dirOut,'{}_zenodo-filelist.txt'.format(evcat))
+                try:
+                    # download new file
+                    zen.zenodo_get(['--wget={}'.format(zenFileList),catlist[evcat]['zenodo']])
+                    gwtcdata['meta']['zenodoFileList']=zenFileList
+                    fzen=open(zenFileList,'r')
+                    catlist[evcat]['zenFiles']=fzen.readlines()
+                    fzen.close()
+                    catlist[evcat]['zenodoLoaded']=True
+                    if verbose:print('Downloaded {} Zenodo file list from {} to {}'.format(evcat,catlist[evcat]['zenodo'],zenFileList))
+                    zenFiles=catlist[evcat]['zenFiles']
+                except:
+                    print('WARNING: unable to save {} Zenodo file list from {} to {}'.format(evcat,catlist[evcat]['zenodo'],zenFileList))
+                    try:
+                        fzen=open(zenFileList,'r')
+                        catlist[evcat]['zenFiles']=fzen.readlines()
+                        fzen.close()
+                        catlist[evcat]['zenodoLoaded']=True
+                        if verbose:print('Using existing Zenodo file for {}: {}'.format(evcat,zenFileList))
+                        zenFiles=catlist[evcat]['zenFiles']
+                    except:
+                        print('WARNING: no existing Zenodo file to use')
+            else:
+                # zenFiles list already exists
+                zenFiles=catlist[evcat]['zenFiles']
+                
         if 'jsonurl' in gwtcdata['data'][ev]:
             jsonurl=gwtcdata['data'][ev]['jsonurl']
             if devMode:
@@ -158,16 +195,6 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             if 'parameters' in evdata:
                 gwtcdata['data'][ev]['parameters']=evdata['parameters']
                 petag='UNKNOWN'
-                # if evdata['catalog.shortName']=='GWTC-1-confident':
-                #     petag='gwtc1_pe_{}'.format(evdata['commonName'])
-                # elif evdata['catalog.shortName']=='GWTC-2':
-                #     petag='gwtc2_pe_7{}'.format(evdata['commonName'])
-                # elif evdata['catalog.shortName']=='GWTC-2.1-confident':
-                #     petag='GWTC-2.1-confident_{}_R1_pe_combined'.format(evdata['commonName'])
-                # elif evdata['catalog.shortName']=='GWTC-3':
-                #     petag='GWTC-3-confident_{}_R1_pe_combined'.format(evdata['commonName'])
-                # elif evdata['catalog.shortName']=='O3_Discovery_Papers':
-                #     petag='O3_Discovery_Papers_{}_R2_pe_combined'.format(evdata['commonName'])
                 if not petag in evdata['parameters']:
                     petagbest=getBestParam(evdata,{'M1':None},{'mass_1_source':'M1'},verbose=verbose)
                     if petagbest:
@@ -180,6 +207,22 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                         gwtcdata['data'][ev]['data_link']=data_url
                         if useLocal:
                             gwtcdata['data'][ev]['data_link_local']='data/local-mirror/{}-v{}.{}'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'],data_url.split('.')[-1])
+            if 'zenodo' in catlist[evcat]:
+                # find h5 file
+                if ev=='GW200210_092254':
+                    # to catch zenodo filename typo!
+                    zenev=ev.replace('GW200210_092254','GW200210_092255')
+                else:
+                    zenev=ev
+                for zenf in zenFiles:
+                    if zenf.find('nocosmo.h5')<0 and zenf.find(zenev)>=0:
+                        # make sure not to include nocosmo files from GWTC-3-confident
+                        gwtcdata['data'][ev]['data_link']=zenf.replace('\n','')
+                        gwtcdata['data'][ev]['zenodo_version']=int(re.match('.*\/record\/([0-9]*)\/',zenf).groups()[0])
+                        if verbose:print('data link for {}:{}'.format(ev,zenf))
+                    if zenf.find('skymaps.tar.gz')>=0 or zenf.find('SkyMaps.tar.gz')>=0:
+                        gwtcdata['data'][ev]['map_link']=zenf.replace('\n','')
+                        if verbose:print('map link for {}:{}'.format(ev,zenf))
             if 'strain' in evdata:
                 gwtcdata['data'][ev]['strain']=evdata['strain']
     
@@ -262,7 +305,7 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             pdict=None
             if convsnr[c] in datadict:
                 pdict=datadict[convsnr[c]]
-            param=paramConv(gwtcin[e],c,pdict,verbose=verbose)
+            param=paramConv(gwtcin[e],c,pdict,verbose=False)
             if (param):
                 catOut[e][convsnr[c]]=param
                 # catOut[e][convsnr[c]]['src']=psnrname
@@ -320,18 +363,28 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
                 'type':'json-url-local'}
             linksOut[e].append(jsonurllinklocal)
         if 'data_link' in gwtcin[e]:
-            datalink={'url':gwtcin[e]['data_link'],
-                'text':'Data file',
-                'type':'data-file'}
-            if devMode:
-                datalink['url']=datalink['url'].replace('public/','DocDB/')
-            if datalink['url'].find('.tar')>0:
-                datalink['filetype']='tar'
-            elif datalink['url'].find('.h5')>0 or datalink['url'].find('.hdf5'):
-                datalink['filetype']='h5'
-            else:
-                datalink['filetype']='unknown'
-            linksOut[e].append(datalink)
+            if gwtcin[e]['data_link']!='':
+                datalink={'url':gwtcin[e]['data_link'],
+                    'text':'Data file',
+                    'type':'data-file'}
+                if devMode:
+                    datalink['url']=datalink['url'].replace('public/','DocDB/')
+                if datalink['url'].find('.tar')>0:
+                    datalink['filetype']='tar'
+                elif datalink['url'].find('.h5')>0 or datalink['url'].find('.hdf5'):
+                    datalink['filetype']='h5'
+                else:
+                    datalink['filetype']='unknown'
+                if datalink['url'].find('gw-openscience')>0:
+                    datalink['src']='gwosc'
+                elif datalink['url'].find('zenodo')>0:
+                    datalink['src']='zenodo'
+                linksOut[e].append(datalink)
+        if 'map_link' in gwtcin[e]:
+            if gwtcin[e]['map_link']!='':
+                maplink={'url':gwtcin[e]['map_link'],'text':'Sky Map',
+                        'type':'skymap-fits','filetype':'tar'}
+                linksOut[e].append(maplink)
         if 'data_link_local' in gwtcin[e]:
             datalinklocal={'url':gwtcin[e]['data_link_local'],
                 'text':'Data file (local)',
@@ -360,13 +413,17 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
         dtOut=Time(dtIn,format='iso').isot
         catOut[e]['UTC']={'best':dtOut}
         catOut[e]['meta']={'retrieved':Time.now().isot,'src':url}
+        if 'date_added' in paramIn:
+            catOut[e]['meta']['data_date_added']=paramIn['date_added']
+        if 'zenodo_version' in gwtcin[e]:
+            catOut[e]['meta']['zenodo_version']=gwtcin[e]['zenodo_version']
         if 'parameter_tag' in gwtcin[e]:
             catOut[e]['meta']['parameter_tag']=gwtcin[e]['parameter_tag']
         
     
     return ({'data':catOut,'links':linksOut})
     
-def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx='PublicationSamples',verbose=False):
+def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx=None,verbose=False):
     """Extract parameters from GWTC2 HDF (.h5) files using pesummary
     Inputs:
         * hfFile [string]: filename to read
@@ -432,10 +489,10 @@ def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx='PublicationSamples',ve
             # just use first
             thisapprox=approximants[0]
     if verbose:print('using approximant {}'.format(thisapprox))
-    
+    paramsOut['approximant']=thisapprox
     # get more params
     h5samp=h5dat.samples_dict[thisapprox]
-    params={'approximant':thisapprox}
+    params={}
     for c in conv:
         if c in h5samp.parameters:
             params[c]=h5samp.median[c][0]
@@ -508,7 +565,7 @@ def getBestParam(gwtcin_e,datadict={'M1':None},conv={'mass_1_source':'M1'},verbo
     
     # compare mass_1_source and compare with "root" values
     c_chk='mass_1_source'
-    mchroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=verbose)
+    mchroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=False)
     if mchroot:
         mchroot=mchroot['best']
     else:
@@ -524,7 +581,7 @@ def getBestParam(gwtcin_e,datadict={'M1':None},conv={'mass_1_source':'M1'},verbo
             pedates.append(Time(gwtcin_e['parameters'][pn]['date_added']).gps)
         else:
             pedates.append(np.nan)
-        paramch=paramConv(gwtcin_e['parameters'][pn],c_chk,datadict[conv[c_chk]],verbose=verbose)
+        paramch=paramConv(gwtcin_e['parameters'][pn],c_chk,datadict[conv[c_chk]],verbose=False)
         if paramch:
             paramch=paramch['best']
         else:

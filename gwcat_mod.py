@@ -499,8 +499,8 @@ class GWCat(object):
                     self.addLink(ev,l,verbose=verbose)
             self.updateStatus(ev,verbose=verbose,desc='{} Catalog import'.format(catalog))
         for ev in catData['links']:
-            self.updateH5Src(ev,verbose=False)
-            self.updateStatus(ev,verbose=False,desc='Data file src')
+            self.updateH5Src(ev,verbose=verbose)
+            self.updateStatus(ev,verbose=verbose,desc='Data file src')
         self.evTimes = self.getTimestamps()
         self.json2dataframe(verbose=verbose)
         if not catalog in self.meta:
@@ -627,21 +627,24 @@ class GWCat(object):
         """
         ldat=self.getLink(ev,'data-file',verbose=verbose)
         if len(ldat)>1 and verbose:
-            print('Warning: more than one data file link for {}'.format(ev))
+            print('Warning: more than one data file link for {} [{}]'.format(ev,self.data[ev]['catalog']))
         if len(ldat)==0 and verbose:
-            print('Warning: no data file link for {}'.format(ev))
+            print('Warning: no data file link for {} [{}]'.format(ev,self.data[ev]['catalog']))
         if len(ldat)>0:
             l=ldat[0]
             tmpDir=os.path.join(self.dataDir,'tmp')
             try:
                 # self.data[ev]['meta']['h5datesrc']=Time.now().isot
                 self.data[ev]['meta']['h5urlsrc']=l['url']
+                if 'zenodo_version' in self.data[ev]['meta']:
+                    stat={'h5zenodosrc':self.data[ev]['meta']['zenodo_version']}
+                    self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='H5 zenodo src')
                 if verbose:print('Data file loaded for {}:'.format(ev),l['url'])
             except:
                 print('WARNING: Error loading data file for {}:'.format(ev),l)
 
     def updateH5(self,verbose=False,forceUpdate=False,forceUpdateData=False,replace=False):
-        """Check whether H5 files need updating and re-download if necessary (using getH5 of getH5Local).
+        """Check whether H5 files need updating and re-download if necessary (using getH5 or getH5Local).
         Update parameters from H5 files.
         Inputs:
             * ev [string]: event name
@@ -656,8 +659,10 @@ class GWCat(object):
         print('*** Updating data files...')
         
         for ev in self.data:
-            # compare map creation dates and versions
             try:
+                if not ev in self.status:
+                    self.status[ev]={}
+                # compare map creation dates and versions
                 if 'h5datelocal' in self.status[ev] and 'h5datesrc' in self.status[ev]:
                     h5datelocal=Time(self.status[ev]['h5datelocal']).gps
                     h5datesrc=Time(self.status[ev]['h5datesrc']).gps
@@ -670,23 +675,36 @@ class GWCat(object):
                 else:
                     h5verlocal=-1
                     h5versrc=-1
-                h5file=self.status[ev]['h5urllocal']
+                if 'h5zenodolocal' in self.status[ev] and 'h5zenodosrc' in self.status[ev]:
+                    h5zenodolocal=self.status[ev]['h5zenodolocal']
+                    h5zenodosrc=self.status[ev]['h5zenodosrc']
+                else:
+                    h5zenodolocal=-1
+                    h5zenodosrc=-1
+                h5file=self.status[ev].get('h5urllocal','')
                 if not os.path.isfile(h5file):
                     if verbose:print('No file. Need to re-download data file for {}'.format(ev))
                     updateH5=True
+                elif h5zenodosrc>0 and h5zenodolocal>0:
+                    if h5zenodosrc>h5zenodolocal:
+                        if verbose:print('Newer zenodo version [{}>{}]. Need to re-download data file for {}'.format(h5zenodosrc,h5zenodolocal,ev))
+                        updateH5=True
+                    else:
+                        if verbose:print('Older zenodo version file. Do not need to re-download data file for {}'.format(ev))
+                        updateH5=False
+                elif h5versrc>0 and h5verlocal>0:
+                    if h5versrc>h5verlocal:
+                        if verbose:print('Newer version [{}>{}]. Need to re-download data filename for {}'.format(h5versrc,h5verlocal,ev))
+                        updateH5=True
+                    else:
+                        if verbose:print('Older version file. Do not need to re-download data file for {}'.format(ev))
+                        updateH5=False
                 elif h5datesrc>0 and h5datelocal>0:
                     if (h5datesrc-h5datelocal)>1:
                         if verbose:
                             print('Newer file. Need to re-download data file for {}'.format(ev))
                             print('src',Time(h5datesrc,format='gps').isot)
                             print('local',Time(h5datelocal,format='gps').isot)
-                        updateH5=True
-                    else:
-                        if verbose:print('Older file. Do not need to re-download data file for {}'.format(ev))
-                        updateH5=False
-                elif h5versrc>0 and h5verlocal>0:
-                    if h5versrc>h5verlocal:
-                        if verbose:print('Newer version [{}>{}]. Need to re-download map for {}'.format(h5versrc,h5verlocal,ev))
                         updateH5=True
                     else:
                         if verbose:print('Older file. Do not need to re-download data file for {}'.format(ev))
@@ -801,10 +819,10 @@ class GWCat(object):
             print('Created directory: {}'.format(h5Dir))
         ldat=self.getLink(ev,'data-file')
         if len(ldat)==0:
-            if verbose: print('ERROR: no data file link for {}',format(ev))
+            if verbose: print('ERROR: no data file link for {}'.format(ev))
             return
         if len(ldat)>1:
-            if verbose: print('WARNING: more than one data file link for {}',format(ev))
+            if verbose: print('WARNING: more than one data file link for {}'.format(ev))
         url=ldat[0]['url']
         if verbose: print('Downloading data file for {} from {}'.format(ev,url))
         srcfile=os.path.split(url)[-1]
@@ -850,6 +868,9 @@ class GWCat(object):
                     'h5datesrc':Time(os.path.getmtime(h5File),format='unix').isot,
                     'h5verlocal':self.data[ev]["version"],
                     'h5versrc':self.data[ev]["version"]}
+                if 'zenodo_version' in self.data[ev]['meta']:
+                    stat['h5zenodolocal']=self.data[ev]['meta']['zenodo_version']
+                    stat['h5zenodosrc']=self.data[ev]['meta']['zenodo_version']
                 self.data[ev]['meta']['h5urllocal']=h5File
                 self.data[ev]['meta']['h5datelocal']=Time.now().isot
                 self.data[ev]['meta']['h5datesrc']=Time.now().isot
@@ -877,16 +898,32 @@ class GWCat(object):
         tarFile=self.status[ev][statusid]
         tarF=tarfile.open(tarFile)
         tarNames=tarF.getnames()
-        # get first file with _comoving.h5
+        # get first file with _comoving.h5 - for GWTC-2
         h5name=[n for n in tarNames if '_comoving.h5' in n]
         # h5name=[n for n in tarNames if '.h5' in n]
         if len(h5name)>0:
             h5name=h5name[0]
-        mapname=[n for n in tarNames if 'PublicationSamples.fits' in n]
-        if len(mapname)>0:
-            mapname=mapname[0]
-        
-        out={}
+        mapname=[]
+        for n in tarNames:
+            # GWTC-2 filename
+            if n.find('PublicationSamples.fits')>=0:
+                # for GWTC-2
+                mapname.append(n)
+            # GWTC-2.1 filename
+            if 'approximant' in self.status[ev]:
+                if n.find(ev)>=0 and n.find(self.status[ev]['approximant'])>=0:
+                    mapname.append(n)
+            # GWTC-3 filename
+            if n.find(ev)>=0 and n.find('Mixed.fits')>=0:
+                mapname.append(n)
+            # catch for GWTC-3 zenodo filename error
+            if n.find(ev.replace('GW200210_092254','GW200210_092255'))>=0 and n.find('Mixed.fits')>=0:
+                mapname.append(n)
+            
+        # else:
+        #     mapname=[n for n in tarNames if 'PublicationSamples.fits' in n]
+        if verbose:print('map for {}:{}'.format(ev,mapname))
+        out={'h5':'','map':''}
         
         # extract h5 to h5 directory tarfile
         if not maponly:
@@ -907,30 +944,36 @@ class GWCat(object):
                 pass
             
         # extract fits to fits directory
-        fitsDir=os.path.join(self.dataDir,'fits')
-        if not os.path.exists(fitsDir):
-            # create directory
-            os.mkdir(fitsDir)
-            print('Created directory: {}'.format(fitsDir))
-        try:
-            tarF.extract(mapname,path=fitsDir)
-            mapFile=os.path.join(fitsDir,mapname)
-            if (verbose): print('Extracted Map to {}'.format(mapFile))
+        if len(mapname)>0:
+            fitsDir=os.path.join(self.dataDir,'fits')
+            if not os.path.exists(fitsDir):
+                # create directory
+                os.mkdir(fitsDir)
+                print('Created directory: {}'.format(fitsDir))
             
-            # save location of map to status
-            # save location of h5 file to status
-            stat={'mapurllocal':mapFile,
-                'mapurlsrc':self.status[ev]["tarurlsrc"],
-                'mapdatelocal':Time.now().isot,
-                'mapdatesrc':Time(os.path.getmtime(mapFile),format='unix').isot,
-                'mapverlocal':self.data[ev]["version"],
-                'mapversrc':self.data[ev]["version"]}
-            self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='map file local')
-            out['map']=mapFile
-            self.addLink(ev,{'url':self.status[ev]["mapurlsrc"],'text':'Sky Map',
-                'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
-        except:
-            pass
+            try:
+                tarF.extract(mapname[0],path=fitsDir)
+                mapFile=os.path.join(fitsDir,mapname[0])
+                if (verbose): print('Extracted Map to {}'.format(mapFile))
+                
+                # save location of map to status
+                # save location of h5 file to status
+                stat={'mapurllocal':mapFile,
+                    'mapdatelocal':Time.now().isot,
+                    'mapdatesrc':Time(os.path.getmtime(mapFile),format='unix').isot,
+                    'mapverlocal':self.data[ev]["version"],
+                    'mapversrc':self.data[ev]["version"]}
+                if 'maptarurlsrc' in self.status[ev]:
+                    stat['mapurlsrc']=self.status[ev]['maptarurlsrc']
+                elif 'tarurlsrc' in self.status[ev]:
+                    stat['mapurlsrc']=self.status[ev]['tarurlsrc']
+                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='map file local')
+                out['map']=mapFile
+                self.addLink(ev,{'url':self.status[ev]["mapurlsrc"],'text':'Sky Map',
+                    'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
+            except:
+                print('WARNING: Error extracting {} map {} from tar {}'.format(ev,mapname[0],tarFile))
+                pass
         # return h5file and mapfile locations?
         return out
         
@@ -947,10 +990,10 @@ class GWCat(object):
         # import local h5 file into database
         ldat=self.getLink(ev,'data-local')
         if len(ldat)==0:
-            if verbose: print('ERROR: no local data file link for {}',format(ev))
+            if verbose: print('ERROR: no local data file link for {} [{}]'.format(ev,self.data[ev]['catalog']))
             return
         if len(ldat)>1:
-            if verbose: print('WARNING: more than one local data file link for {}',format(ev))
+            if verbose: print('WARNING: more than one local data file link for {} [{}]'.format(ev,self.data[ev]['catalog']))
         h5File=ldat[0]['url']
         if verbose: print('Using local h5 file for {}: {}'.format(ev,h5File))
         if ldat[0]['filetype']=='tar':
@@ -993,10 +1036,14 @@ class GWCat(object):
         Outputs:
             * [object] dict containing new parameters. None if not GWTC2
         """
-        if self.getParameter(ev,'catalog')!='GWTC-2' and self.getParameter(ev,'catalog')!='O3_Discovery_Papers':
-            if verbose:print('not GWTC-2 or O3_Discovery_Papers')
+        validcats={'GWTC-2':{'approx':'PublicationSamples'},'GWTC-2.1-confident':{},'O3_Discovery_Papers':{'approx':'PublicationSamples'},'GWTC-3-confident':{'approx':'C01:Mixed'}}
+        if not self.getParameter(ev,'catalog') in validcats:
+            if verbose:print('not valid catalogue')
             newparams=None
         else:
+            if not approx:
+                if 'approx' in validcats[self.getParameter(ev,'catalog')]:
+                    approx=validcats[self.getParameter(ev,'catalog')]['approx']
             newparams={}
             if verbose:print('getting H5 parameters for {}'.format(ev))
             m1check=self.getParameter(ev,'M1')
@@ -1063,9 +1110,18 @@ class GWCat(object):
                 else:
                     mapverlocal=-1
                     mapversrc=-1
-                mapfile=self.status[ev]['mapurllocal']
+                if 'mapzenodolocal' in self.status[ev] and 'mapzenodosrc' in self.status[ev]:
+                    mapzenodolocal=self.status[ev]['mapzenodolocal']
+                    mapzenodosrc=self.status[ev]['mapzenodosrc']
+                else:
+                    mapzenodolocal=-1
+                    mapzenodosrc=-1
+                mapfile=self.status[ev].get('mapurllocal','')
                 if not os.path.isfile(mapfile):
                     if verbose:print('No file. Need to re-download map for {}'.format(ev))
+                    updateMap=True
+                elif mapzenodosrc>0 and mapzenodolocal>0 and mapzenodosrc>mapzenodolocal:
+                    if verbose:print('Newer Zenodo version. Need to re-download map for {}'.format(ev))
                     updateMap=True
                 elif mapdatesrc>0 and mapdatelocal>0 and (mapdatesrc-mapdatelocal)>1:
                     if verbose:print('Newer date file. Need to re-download map for {}'.format(ev))
@@ -1117,7 +1173,7 @@ class GWCat(object):
         url=lmap[0]['url']
         if verbose: print('Downloading skymap for {} from {}'.format(ev,url))
         srcfile=os.path.split(url)[-1]
-        if srcfile.find(ev)<0:
+        if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.find('skymaps.tar.gz')<0:
             fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
         else:
             fitsFile=os.path.join(fitsDir,srcfile)
@@ -1148,8 +1204,20 @@ class GWCat(object):
                 'maptarverlocal':self.data[ev]["version"],
                 'maptarversrc':self.data[ev]["version"]}
             self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='tar file local (map)')
-            tarout=self.extractTar(ev,statusid='maptarurllocal',maponly=True,verbose=verbose)
-            fitsFile=tarout['map']
+            if 'maptarurllocal' in self.status[ev]:
+                try:
+                    tarout=self.extractTar(ev,statusid='maptarurllocal',maponly=True,verbose=verbose)
+                    fitsFile=tarout['map']
+                except:
+                    print('problem reading maptarurllocal file: {}'.format(self.status[ev]['maptarurllocal']))
+            elif 'tarurllocal' in self.status[ev]:
+                try:
+                    tarout=self.extractTar(ev,statusid='tarurllocal',maponly=True,verbose=verbose)
+                    fitsFile=tarout['map']
+                except:
+                    print('problem reading tarurllocal file: {}'.format(self.status[ev]['tarurllocal']))
+            else:
+                print('ERROR: no status entry for tarurllocal or maptarurllocal')
         try:
             hdr=fits.getheader(fitsFile,ext=1)
             self.data[ev]['meta']['mapurllocal']=fitsFile
