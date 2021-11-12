@@ -546,11 +546,11 @@ class GWCat(object):
                 if verbose:
                     print('matching {} with {}'.format(ev,matchname))
                 self.data[ev]['meta']['gracedb']=matchname
-                maplink=self.getLink(ev,'skymap-fits')
-                mapgdb=self.getLink(matchname,'skymap-fits')
-                if len(maplink)==0 and len(mapgdb)>0:
-                    if verbose:print('copying GraceDB map link from {} to {}: {}'.format(matchname,ev,mapgdb[0]))
-                    self.addLink(ev,mapgdb[0],verbose=verbose)
+                # maplink=self.getLink(ev,'skymap-fits')
+                # mapgdb=self.getLink(matchname,'skymap-fits')
+                # if len(maplink)==0 and len(mapgdb)>0:
+                #     if verbose:print('copying GraceDB map link from {} to {}: {}'.format(matchname,ev,mapgdb[0]))
+                #     self.addLink(ev,mapgdb[0],verbose=verbose)
             
         return
         
