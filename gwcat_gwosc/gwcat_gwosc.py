@@ -194,6 +194,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             evname=evdata['commonName']
             if 'parameters' in evdata:
                 gwtcdata['data'][ev]['parameters']=evdata['parameters']
+                # find PE tag that matches
                 petag='UNKNOWN'
                 if not petag in evdata['parameters']:
                     petagbest=getBestParam(evdata,{'M1':None},{'mass_1_source':'M1'},verbose=verbose)
@@ -207,6 +208,13 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                         gwtcdata['data'][ev]['data_link']=data_url
                         if useLocal:
                             gwtcdata['data'][ev]['data_link_local']='data/local-mirror/{}-v{}.{}'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'],data_url.split('.')[-1])
+                srchtag='UNKNOWN'
+                if not srchtag in evdata['parameters']:
+                    srchtagbest=getBestParam(evdata,{'rho':None},{'network_matched_filter_snr':'rho'},verbose=verbose,search=True)
+                    if srchtagbest:
+                        srchtag=srchtagbest
+                if srchtag in evdata['parameters']:
+                    gwtcdata['data'][ev]['search_parameter_tag']=srchtag
             if 'zenodo' in catlist[evcat]:
                 # find h5 file
                 if ev=='GW200210_092254':
@@ -285,7 +293,8 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
     convsnr={
         'GPS':'GPS',
         'network_matched_filter_snr':'rho',
-        'far':'FAR'
+        'far':'FAR',
+        'p_astro':'p_astro'
     }
     for e in gwtcin:
         catOut[e]={}
@@ -301,13 +310,25 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
         print(catOut[e])
         catOut[e]['jsonURL']=gwtcin[e]['jsonurl']
         
+        srchname=gwtcin[e].get('search_parameter_tag','UNKNOWN')
+        if srchname in gwtcin[e]['parameters']:
+            if verbose:
+                print('reading search parameters from {}'.format(srchname))
+                print(gwtcin[e]['parameters'][srchname])
+            srchparamIn=gwtcin[e]['parameters'][srchname]
+        else:
+            if verbose:
+                print('cannot find {} parameters. Using root parameters'.format(srchname))
+            srchparamIn=gwtcin[e]
         for c in convsnr:
-            pdict=None
+            srchpdict=None
             if convsnr[c] in datadict:
-                pdict=datadict[convsnr[c]]
-            param=paramConv(gwtcin[e],c,pdict,verbose=False)
-            if (param):
-                catOut[e][convsnr[c]]=param
+                srchpdict=datadict[convsnr[c]]
+            else:
+                if verbose:print('{} not in datadict'.format(convsnr[c]))
+            srchparam=paramConv(srchparamIn,c,srchpdict,verbose=verbose)
+            if (srchparam):
+                catOut[e][convsnr[c]]=srchparam
                 # catOut[e][convsnr[c]]['src']=psnrname
         
         pname=gwtcin[e].get('parameter_tag','UNKNOWN')
@@ -398,8 +419,12 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             linksOut[e].append(datalinklocal)
             
         if catlist[catOut[e]['catalog']]['type']=='marginal':
-            catOut[e]['detType']={'best':'Marginal'}
-            catOut[e]['conf']={'best':'Marginal'}
+            if catOut[e]['name'][0]=='G':
+                catOut[e]['detType']={'best':'Marginal'}
+                catOut[e]['conf']={'best':'Marginal'}
+            else:
+                catOut[e]['detType']={'best':'Candidate'}
+                catOut[e]['conf']={'best':'Candidate'}
         elif catlist[catOut[e]['catalog']]['type']=='confident':
             catOut[e]['detType']={'best':'GW'}
             catOut[e]['conf']={'best':'GW'}
@@ -550,53 +575,106 @@ def paramConv(evdat,param,paramdict,verbose=False):
 
     return(pOut)
 
-def getBestParam(gwtcin_e,datadict={'M1':None},conv={'mass_1_source':'M1'},verbose=False):
+def getBestParam(gwtcin_e,datadict={'M1':None},conv=None,verbose=False,search=False):
     # find best-fit parameters
+    # if verbose:
+    #     if search:
+    #         print('searching for best search parameter')
+    #     else:
+    #         print('searching for best PE parameter')
+    if not conv:
+        if search:
+            conv={'network_matched_filter_snr':'rho'}
+        else:
+            conv={'mass_1_source':'M1'}
     pnbest=''
+    for col in conv:
+        c_chk=col
+    # if verbose:
+        # print('checking {} against {}'.format(c_chk,conv[c_chk]))
     # check whether dataset has is_preferred set and mass_1_source
     for pn in gwtcin_e['parameters']:
-        if 'mass_1_source' in  gwtcin_e['parameters'][pn]:
-            if gwtcin_e['parameters'][pn].get('is_preferred','')=='true':
+        # if verbose:print('checking {}'.format(pn))
+        if c_chk in gwtcin_e['parameters'][pn]:
+            # if verbose:print('{} in {}'.format(c_chk,pn),gwtcin_e['parameters'][pn])
+            if gwtcin_e['parameters'][pn].get('is_preferred','')==True:
+                # if verbose:print('{} preferred'.format(pn))
                 pnbest=pn
                 if verbose:
-                    print('found preferred PE parameters in {}'.format(pn))
+                    if search:
+                        print('found preferred search parameters in {}'.format(pn))
+                    else:
+                        print('found preferred PE parameters in {}'.format(pn))
     if (pnbest):
+        # preferred parameter set is found
         return pnbest
     
-    # compare mass_1_source and compare with "root" values
-    c_chk='mass_1_source'
-    mchroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=False)
-    if mchroot:
-        mchroot=mchroot['best']
+    # compare parameter values and compare with "root" values
+    chkroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=False)
+    if chkroot:
+        chkroot=chkroot['best']
     else:
-        mchroot=np.nan
+        chkroot=np.nan
     pnames=[]
-    mchs=[]
-    pecomb=[]
-    pedates=[]
+    pchks=[]
+    peparam=[]
+    srchparam=[]
+    pdates=[]
+    
     for pn in gwtcin_e['parameters']:
         pnames.append(pn)
-        pecomb.append(pn.find('pe')>=0)
-        if 'date_added' in gwtcin_e['parameters'][pn]:
-            pedates.append(Time(gwtcin_e['parameters'][pn]['date_added']).gps)
+        # figure out if parameters are srch/PE parameters
+        if search:
+            srchparam.append(c_chk in gwtcin_e['parameters'][pn])
+            peparam.append(np.nan)
         else:
-            pedates.append(np.nan)
+            ispe=pn.find('pe')>=0
+            if not ispe:
+                ispe=(c_chk in gwtcin_e['parameters'][pn])
+            peparam.append(ispe)
+            srchparam.append(np.nan)
+        # get date_added from parameters
+        if 'date_added' in gwtcin_e['parameters'][pn]:
+            pdates.append(Time(gwtcin_e['parameters'][pn]['date_added']).gps)
+        else:
+            pdates.append(np.nan)
+        # get check parameter
         paramch=paramConv(gwtcin_e['parameters'][pn],c_chk,datadict[conv[c_chk]],verbose=False)
         if paramch:
             paramch=paramch['best']
         else:
             paramch=np.nan
-        mchs.append(paramch)
+        pchks.append(paramch)
     pnames=np.array(pnames)
-    pedates=np.array(pedates)
-    pecomb=np.array(pecomb)
-    mchs=np.array(mchs)
-    finmch=np.isfinite(mchs)
-    findates=np.isfinite(pedates)
-    if len(np.argwhere(pecomb))==1:
-        pnbest=pnames[np.argwhere(pecomb)][0][0]
-    elif len(pedates[findates])>0 and len(np.argwhere(pecomb))>0:
-        pnbest=pnames[pecomb][np.argmin(pedates[pecomb])]
-    elif len(mchs[finmch])>0:
-        pnbest=pnames[finmch][np.argmin(np.abs(mchs[finmch]-mchroot))]
+    pdates=np.array(pdates)
+    peparam=np.array(peparam)
+    srchparam=np.array(srchparam)
+    pchks=np.array(pchks)
+    finchk=np.isfinite(pchks)
+    findates=np.isfinite(pdates)
+    
+    if search:
+        if len(np.argwhere(srchparam))==1:
+            pnbest=pnames[np.argwhere(srchparam)][0][0]
+            if verbose:
+                print('found only search parameters in {}'.format(pnbest))
+        elif len(pdates[findates])>0 and len(np.argwhere(srchparam))>0:
+            pnbest=pnames[srchparam][np.argmax(pdates[srchparam])]
+            if verbose:
+                print('found latest search parameters in {}'.format(pnbest))
+    else:
+        if len(np.argwhere(peparam))==1:
+            pnbest=pnames[np.argwhere(peparam)][0][0]
+            if verbose:
+                print('found only PE parameters in {}'.format(pnbest))
+        elif len(pdates[findates])>0 and len(np.argwhere(peparam))>0:
+            pnbest=pnames[peparam][np.argmin(pdates[peparam])]
+            if verbose:
+                print('found latest PE parameters in {}'.format(pnbest))
+    if not pnbest:
+        if len(pchks[finchk])>0:
+            bestidx=np.argmin(np.abs(pchks[finchk]-chkroot))
+            pnbest=pnames[finchk][bestidx]
+            if verbose:
+                print('found closest-matching parameters in {} [{} vs {}]'.format(pnbest,pchks[finchk],chkroot))
     return pnbest
