@@ -1326,17 +1326,20 @@ class GWCat(object):
                 'moll_rot':{'linktxt':'Skymap (Mollweide fullsky, rotated)'},
                 'cart_rot':{'linktxt':'Skymap (Cartesian fullsky, rotated)'}
             }
+            imgs={}
             nUpdate=0
             nUpdateLinks=0
             for p in plots:
-                plots[p]['pngFile']=os.path.join(pngDir,'{}_{}.png'.format(ev,p))
-                plots[p]['thumbFile']=os.path.join(pngDir,'{}_{}.thumb.png'.format(ev,p))
+                plots[p]['pngFileOnly']='{}_{}.png'.format(ev,p)
+                plots[p]['thumbFileOnly']='{}_{}.thumb.png'.format(ev,p)
+                plots[p]['pngFile']=os.path.join(pngDir,plots[p]['pngFileOnly'])
+                plots[p]['thumbFile']=os.path.join(pngDir,plots[p]['thumbFileOnly'])
                 plots[p]['exists']=os.path.isfile(plots[p]['pngFile'])
                 if not plots[p]['exists'] or overwrite:
                     plots[p]['update']=True
                 else:
                     plots[p]['update']=False
-                link=self.getLink(ev,plots[p]['linktxt'],srchtype='text')
+                link=self.getLink(ev,'skymap-plot',file=p)
                 if len(link)>0:
                     if 'created' in link[0]:
                         if link[0]['created']<fitsCreated:
@@ -1344,19 +1347,29 @@ class GWCat(object):
                 else:
                     nUpdateLinks+=1
                 if plots[p]['update']: nUpdate+=1
+                imgs[p]={'file':plots[p]['pngFileOnly'],'text':plots[p]['linktxt']}
+                imgs[p+'-thumb']={'file':plots[p]['thumbFileOnly'],'text':plots[p]['linktxt']}
 
             if nUpdate==0:
                 if verbose:print('all plots exist for {}'.format(ev))
                 mapread=False
-                if nUpdateLinks>0:
+                if nUpdateLinks>0 or updateLink:
                     if verbose: print('skipping plotting {} maps. Adding links'.format(ev))
                     for p in plots:
                         pp=plots[p]
                         # add links
-                        self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                        self.addLink(ev,
+                            {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                            'file':pp['pngFile'],'url-loc':'skymap-base-url',
                             'type':'skymap-plot','created':Time.now().isot})
-                        self.addLink(ev,{'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                        self.addLink(ev,
+                            {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                            'file':pp['thumbFile'],'url-loc':'skymap-base-url',
                             'type':'skymap-thumbnail','created':Time.now().isot})
+                    self.addLink(ev,
+                        {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                        'type':'skymap-plot','created':Time.now().isot,
+                        'imgs':imgs})
             else:
                 try:
                     map=plotloc.read_map(filename,verbose=verbose)
@@ -1458,9 +1471,13 @@ class GWCat(object):
                     if not pp['update']:
                         if verbose: print('skipping plotting {} map. Adding links'.format(pp['linktxt']))
                         # add links
-                        self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                        self.addLink(ev,
+                            {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                            'file':pp['pngFile'],'url-loc':'skymap-base-url',
                             'type':'skymap-plot','created':Time.now().isot})
-                        self.addLink(ev,{'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                        self.addLink(ev,
+                            {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                            'file':pp['thumbFile'],'url-loc':'skymap-base-url',
                             'type':'skymap-thumbnail','created':Time.now().isot})
                     else:
                         if verbose:print('plotting {} map to {}'.format(pp['linktxt'],pp['pngFile']))
@@ -1472,19 +1489,32 @@ class GWCat(object):
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
                             addCredit=credit,addLogos=logos,border=border,lw=lw,fontsize=fontsize)
                         # add links
-                        self.addLink(ev,{'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                        self.addLink(ev,
+                            {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                            'file':pp['pngFile'],'url-loc':'skymap-base-url',
                             'type':'skymap-plot','created':Time.now().isot})
-                        self.addLink(ev,{'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                        self.addLink(ev,
+                            {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                            'file':pp['thumbFile'],'url-loc':'skymap-base-url',
                             'type':'skymap-thumbnail','created':Time.now().isot})
+                self.addLink(ev,
+                    {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                    'type':'skymap-plot','created':Time.now().isot,
+                    'files':imgs})
 
+            gravs={'gal_8192':{'text':'Skymap (no annotations)'},
+                'eq_8192':{'text':'Skymap (Equatorial, no annotations)'},
+                'eq_4096':{'text':'Skymap 4096px (Equatorial, no annotations)'}
+            }
             res=8
             gravNpix=int(res*1024)
             updateGrav=False
-            gravFile=os.path.join(gravDir,'{}_{}.png'.format(ev,gravNpix))
+            gravFileOnly='{}_{}.png'.format(ev,gravNpix)
+            gravFile=os.path.join(gravDir,gravFileOnly)
+            gravs['gal_8192']['file']=gravFileOnly
             if not os.path.isfile(gravFile):
                 updateGrav=True
-            gravLinktxt='Skymap (no annotations)'
-            gravLink=self.getLink(ev,gravLinktxt,srchtype='text')
+            gravLink=self.getLink(ev,'skymap-plain',file='gal_8192')
             if len(gravLink)>0:
                 if 'created' in gravLink[0]:
                     if gravLink[0]['created']<fitsCreated:
@@ -1495,15 +1525,18 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFile,verbose=verbose,res=res)
-                self.addLink(ev,{'url':self.rel2abs(gravFile),'text':gravLinktxt,
-                    'type':'skymap-plain','created':Time.now().isot})
+                self.addLink(ev,
+                    {'url':self.rel2abs(gravFile),'text':gravLinktxt,
+                    'file':gravFile,'url-loc':'skymap-base-url',
+                    'files':'skymap-plain','created':Time.now().isot})
                     
             updateGravEq=False
-            gravFileEq=os.path.join(gravDir,'{}_{}_eq.png'.format(ev,gravNpix))
+            gravFileOnlyEq='{}_{}_eq.png'.format(ev,gravNpix)
+            gravFileEq=os.path.join(gravDir,gravFileOnlyEq)
+            gravs['eq_8192']['file']=gravFileOnlyEq
             if not os.path.isfile(gravFileEq):
                 updateGravEq=True
-            gravLinkEqtxt='Skymap (Equatorial, no annotations)'
-            gravLinkEq=self.getLink(ev,gravLinkEqtxt,srchtype='text')
+            gravLinkEq=self.getLink(ev,'skymap-plain',file='eq_8192')
             if len(gravLinkEq)>0:
                 if 'created' in gravLinkEq[0]:
                     if gravLinkEq[0]['created']<fitsCreated:
@@ -1514,17 +1547,20 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial) for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq,verbose=verbose,res=res,coord='C')
-                self.addLink(ev,{'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
+                self.addLink(ev,
+                    {'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
+                    'file':gravFileEq,'url-loc':'skymap-base-url',
                     'type':'skymap-plain','created':Time.now().isot})
             
             res4096=4
             gravNpix4096=int(res4096*1024)
             updateGravEq4096=False
-            gravFileEq4096=os.path.join(gravDir,'{}_{}_eq.png'.format(ev,gravNpix4096))
+            gravFileOnlyEq4096='{}_{}_eq.png'.format(ev,gravNpix4096)
+            gravFileEq4096=os.path.join(gravDir,gravFileOnlyEq4096)
+            gravs['eq_4096']['file']=gravFileOnlyEq4096
             if not os.path.isfile(gravFileEq4096):
                 updateGravEq4096=True
-            gravLinkEq4096txt='Skymap 4096px (Equatorial, no annotations)'
-            gravLinkEq4096=self.getLink(ev,gravLinkEq4096txt,srchtype='text')
+            gravLinkEq4096=self.getLink(ev,'skymap-plain',file='eq_4096')
             if len(gravLinkEq4096)>0:
                 if 'created' in gravLinkEq4096[0]:
                     if gravLinkEq4096[0]['created']<fitsCreated:
@@ -1535,15 +1571,24 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial, 4096) for {} ({}x{})'.format(ev,gravNpix4096,int(gravNpix4096/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq4096,verbose=verbose,res=res4096,coord='C')
-                self.addLink(ev,{'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
+                self.addLink(ev,
+                    {'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
+                    'file':gravFileEq4096,'url-loc':'skymap-base-url',
                     'type':'skymap-plain','created':Time.now().isot})
+            # self.addLink(ev,
+            #     {'url':self.rel2abs(''),'text':'Skymap base url',
+            #     'type':'skymap-base-url','created':Time.now().isot})
+            self.addLink(ev,
+                {'url':self.rel2abs(gravDir),'text':'Skymaps (plain)',
+                'type':'skymap-plain','created':Time.now().isot,
+                'files':gravs})
 
         if logFile:
             logF.close()
         return
 
     def makeGravoscopeTilesPerl(self,overwrite=False,verbose=False):
-        """OBSEOLETE Create tile-sets of event localisation maps using perl script for use with Gravoscope.
+        """OBSOLETE Create tile-sets of event localisation maps using perl script for use with Gravoscope.
         Save links to database.
         Inputs:
             * overwrite [boolean, optional]: set to overwrite all plots. Default=False (only output those needed)
@@ -1644,7 +1689,7 @@ class GWCat(object):
                     'type':'gravoscope-tiles','created':fitsCreated.isot})
         return
 
-    def getLink(self,ev,srchtxt,srchtype='type',verbose=False,retIdx=False):
+    def getLink(self,ev,srchtxt,srchtype='type',verbose=False,retIdx=False,file=None):
         """Get link(s) for event based on string search of type or text
         Inputs:
             * ev [string]: event name
@@ -1652,6 +1697,7 @@ class GWCat(object):
             * srchtype [string, optional]: field to search. Default='type'
             * verbose [boolean, optional]: set for verbose output. Default=False
             * retIdx [boolean, optional]: set to output index of link. Default=False (output link itself)
+            * file [string, optional]: file to search for within link
         Outputs:
             * If retIdx==True: [list] List of indices of matching links
             * If retIdx==False: [list] List of matching link objects
@@ -1665,9 +1711,15 @@ class GWCat(object):
                     if retIdx:
                         lOut.append(ol)
                     else:
-                        lOut.append(self.links[ev][ol])
-        if verbose:
-            print('found {} links for {} with {}=={}'.format(len(lOut),ev,srchtype,srchtxt))
+                        linkOut=self.links[ev][ol]
+                        if file and 'files' in self.links[ev][ol]:
+                            linkOut['url']=os.path.join(linkOut['url'],linkOut['files'][file]['file'])
+                            if verbose:
+                                print('found {} links for {} with {}=={} and file={}'.format(len(lOut),ev,srchtype,srchtxt,file))
+                        else:
+                            if verbose:
+                                print('found {} links for {} with {}=={}'.format(len(lOut),ev,srchtype,srchtxt))
+                        lOut.append(linkOut)
         return(lOut)
 
     def addLink(self,ev,link,replace=True,verbose=False):
