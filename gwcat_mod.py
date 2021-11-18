@@ -1368,8 +1368,8 @@ class GWCat(object):
                             'type':'skymap-thumbnail','created':Time.now().isot})
                     self.addLink(ev,
                         {'url':self.rel2abs(pngDir),'text':'Skymaps',
-                        'type':'skymap-plot','created':Time.now().isot,
-                        'imgs':imgs})
+                        'type':'skymaps-plot','created':Time.now().isot,
+                        'files':imgs})
             else:
                 try:
                     map=plotloc.read_map(filename,verbose=verbose)
@@ -1499,7 +1499,7 @@ class GWCat(object):
                             'type':'skymap-thumbnail','created':Time.now().isot})
                 self.addLink(ev,
                     {'url':self.rel2abs(pngDir),'text':'Skymaps',
-                    'type':'skymap-plot','created':Time.now().isot,
+                    'type':'skymaps-plot','created':Time.now().isot,
                     'files':imgs})
 
             gravs={'gal_8192':{'text':'Skymap (no annotations)'},
@@ -1550,7 +1550,7 @@ class GWCat(object):
                 self.addLink(ev,
                     {'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
                     'file':gravFileEq,'url-loc':'skymap-base-url',
-                    'type':'skymap-plain','created':Time.now().isot})
+                    'type':'skymaps-plain','created':Time.now().isot})
             
             res4096=4
             gravNpix4096=int(res4096*1024)
@@ -1580,7 +1580,7 @@ class GWCat(object):
             #     'type':'skymap-base-url','created':Time.now().isot})
             self.addLink(ev,
                 {'url':self.rel2abs(gravDir),'text':'Skymaps (plain)',
-                'type':'skymap-plain','created':Time.now().isot,
+                'type':'skymaps-plain','created':Time.now().isot,
                 'files':gravs})
 
         if logFile:
