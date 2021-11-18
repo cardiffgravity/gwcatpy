@@ -1290,9 +1290,9 @@ class GWCat(object):
             print('Writing Maps log to: {}'.format(logFile))
             logF=open(logFile,'a')
 
-        pngDir=os.path.join(self.dataDir,'png')
-        gravDir=os.path.join(self.dataDir,'gravoscope')
-        dataDir=os.path.join(self.dataDir,'fits')
+        pngDir=os.path.join(self.dataDir,'png/')
+        gravDir=os.path.join(self.dataDir,'gravoscope/')
+        dataDir=os.path.join(self.dataDir,'fits/')
         if not os.path.exists(pngDir):
             os.mkdir(pngDir)
         if not os.path.exists(gravDir):
