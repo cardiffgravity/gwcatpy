@@ -1349,7 +1349,7 @@ class GWCat(object):
                     nUpdateLinks+=1
                 if plots[p]['update']: nUpdate+=1
                 imgs[p]={'file':plots[p]['pngFileOnly'],'text':plots[p]['linktxt']}
-                thumbs[p']={'file':plots[p]['thumbFileOnly'],'text':plots[p]['linktxt']}
+                thumbs[p]={'file':plots[p]['thumbFileOnly'],'text':plots[p]['linktxt']}
 
             if nUpdate==0:
                 if verbose:print('all plots exist for {}'.format(ev))
