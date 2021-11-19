@@ -1327,6 +1327,7 @@ class GWCat(object):
                 'cart_rot':{'linktxt':'Skymap (Cartesian fullsky, rotated)'}
             }
             imgs={}
+            thumbs={}
             nUpdate=0
             nUpdateLinks=0
             for p in plots:
@@ -1348,7 +1349,7 @@ class GWCat(object):
                     nUpdateLinks+=1
                 if plots[p]['update']: nUpdate+=1
                 imgs[p]={'file':plots[p]['pngFileOnly'],'text':plots[p]['linktxt']}
-                imgs[p+'-thumb']={'file':plots[p]['thumbFileOnly'],'text':plots[p]['linktxt']}
+                thumbs[p']={'file':plots[p]['thumbFileOnly'],'text':plots[p]['linktxt']}
 
             if nUpdate==0:
                 if verbose:print('all plots exist for {}'.format(ev))
@@ -1358,18 +1359,22 @@ class GWCat(object):
                     for p in plots:
                         pp=plots[p]
                         # add links
-                        self.addLink(ev,
-                            {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
-                            'file':pp['pngFile'],'url-loc':'skymap-base-url',
-                            'type':'skymap-plot','created':Time.now().isot})
-                        self.addLink(ev,
-                            {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
-                            'file':pp['thumbFile'],'url-loc':'skymap-base-url',
-                            'type':'skymap-thumbnail','created':Time.now().isot})
+                        # self.addLink(ev,
+                        #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                        #     'file':pp['pngFile'],'url-loc':'skymap-base-url',
+                        #     'type':'skymap-plot','created':Time.now().isot})
+                        # self.addLink(ev,
+                        #     {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                        #     'file':pp['thumbFile'],'url-loc':'skymap-base-url',
+                        #     'type':'skymap-thumbnail','created':Time.now().isot})
                     self.addLink(ev,
                         {'url':self.rel2abs(pngDir),'text':'Skymaps',
                         'type':'skymaps-plot','created':Time.now().isot,
                         'files':imgs})
+                    self.addLink(ev,
+                        {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                        'type':'skymaps-thumb','created':Time.now().isot,
+                        'files':thumbs})
             else:
                 try:
                     map=plotloc.read_map(filename,verbose=verbose)
@@ -1471,14 +1476,14 @@ class GWCat(object):
                     if not pp['update']:
                         if verbose: print('skipping plotting {} map. Adding links'.format(pp['linktxt']))
                         # add links
-                        self.addLink(ev,
-                            {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
-                            'file':pp['pngFile'],'url-loc':'skymap-base-url',
-                            'type':'skymap-plot','created':Time.now().isot})
-                        self.addLink(ev,
-                            {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
-                            'file':pp['thumbFile'],'url-loc':'skymap-base-url',
-                            'type':'skymap-thumbnail','created':Time.now().isot})
+                        # self.addLink(ev,
+                        #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                        #     'file':pp['pngFile'],'url-loc':'skymap-base-url',
+                        #     'type':'skymap-plot','created':Time.now().isot})
+                        # self.addLink(ev,
+                        #     {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                        #     'file':pp['thumbFile'],'url-loc':'skymap-base-url',
+                        #     'type':'skymap-thumbnail','created':Time.now().isot})
                     else:
                         if verbose:print('plotting {} map to {}'.format(pp['linktxt'],pp['pngFile']))
                         plotloc.makePlot(ev=ev,mapIn=map,dirData=dataDir,
@@ -1489,18 +1494,22 @@ class GWCat(object):
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
                             addCredit=credit,addLogos=logos,border=border,lw=lw,fontsize=fontsize)
                         # add links
-                        self.addLink(ev,
-                            {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
-                            'file':pp['pngFile'],'url-loc':'skymap-base-url',
-                            'type':'skymap-plot','created':Time.now().isot})
-                        self.addLink(ev,
-                            {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
-                            'file':pp['thumbFile'],'url-loc':'skymap-base-url',
-                            'type':'skymap-thumbnail','created':Time.now().isot})
+                        # self.addLink(ev,
+                        #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
+                        #     'file':pp['pngFile'],'url-loc':'skymap-base-url',
+                        #     'type':'skymap-plot','created':Time.now().isot})
+                        # self.addLink(ev,
+                        #     {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
+                        #     'file':pp['thumbFile'],'url-loc':'skymap-base-url',
+                        #     'type':'skymap-thumbnail','created':Time.now().isot})
                 self.addLink(ev,
                     {'url':self.rel2abs(pngDir),'text':'Skymaps',
                     'type':'skymaps-plot','created':Time.now().isot,
                     'files':imgs})
+                self.addLink(ev,
+                    {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                    'type':'skymaps-thumb','created':Time.now().isot,
+                    'files':thumbs})
 
             gravs={'gal_8192':{'text':'Skymap (no annotations)'},
                 'eq_8192':{'text':'Skymap (Equatorial, no annotations)'},
@@ -1722,6 +1731,39 @@ class GWCat(object):
                         lOut.append(linkOut)
         return(lOut)
 
+
+    def removeLink(self,ev,srchtxt,srchtype='type',verbose=False,retIdx=False,file=None):
+        """Get link(s) for event based on string search of type or text
+        Inputs:
+            * ev [string]: event name
+            * srchtxt [string]: text to search for (assumes regex)
+            * srchtype [string, optional]: field to search. Default='type'
+            * verbose [boolean, optional]: set for verbose output. Default=False
+            * retIdx [boolean, optional]: set to output index of link. Default=False (output link itself)
+            * file [string, optional]: file to search for within link
+        Outputs:
+            * If retIdx==True: [list] List of indices of matching links
+            * If retIdx==False: [list] List of matching link objects
+        """
+        if not ev in self.links:
+            return
+        nRem=0
+        idxOut=[]
+        idxIn=[]
+        if len (self.links[ev])>0:
+            for ol in range(len(self.links[ev])):
+                if self.links[ev][ol][srchtype]==srchtxt:
+                    nRem=nRem+1
+                    idxOut.append(ol)
+                else:
+                    idxIn.append(ol)
+                    # self.links[ev].remove(self.links[ev][ol])
+            if verbose:print('removing {} links from {}'.format(nRem,ev))
+            idxOut.sort(reverse=True)
+            for i in idxOut:
+                self.links[ev].pop(i)
+        return
+        
     def addLink(self,ev,link,replace=True,verbose=False):
         """Add or replace link(s) for event
         Inputs:
