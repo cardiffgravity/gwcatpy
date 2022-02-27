@@ -14,6 +14,7 @@ catlist={'GWTC':{'type':'confident'},
     'GWTC-1-marginal':{'type':'marginal'},
     'GWTC-2-marginal':{'type':'marginal'},
     'GWTC-2.1-marginal':{'type':'marginal'},
+    'GWTC-2.1-auxiliary':{'type':'marginal'},
     'GWTC-3-marginal':{'type':'marginal'},
 }
     
