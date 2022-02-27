@@ -410,7 +410,9 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
         if 'map_link' in gwtcin[e]:
             if gwtcin[e]['map_link']!='':
                 maplink={'url':gwtcin[e]['map_link'],'text':'Sky Map',
-                        'type':'skymap-fits','filetype':'tar'}
+                        'type':'skymap-fits'}
+                if maplink['url'].find('tar')>0:
+                    maplink['filetype']='tar'
                 linksOut[e].append(maplink)
         if 'data_link_local' in gwtcin[e]:
             datalinklocal={'url':gwtcin[e]['data_link_local'],
