@@ -181,13 +181,14 @@ class GWCat(object):
     """Cataloge object containing useful methods for editing and accessing
     """
     def __init__(self,fileIn='../data/events.json',statusFile='status.json',
-        dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',verbose=False,mode='public'):
+        dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',dataurl='https://ligo.gravity.cf.ac.uk/~chris.north/gwcat-data/',verbose=False,mode='public'):
         """Initialise catalogue from input file and set basic parameters
         Inputs:
             * fileIn [string, optional]: filename to load from. Default=../data/events.json
             * statusFile [string, optional]: filename to use for data status. Default=status.json
             * dataDir [string, optional]: Directory to store data in. Default=data/
             * baseurl [string, optional]: URL to use for absolute URLs. Default=https://data.cardiffgravity.org/gwcat-data/
+            * dataurl [string, optional]: URL to use for absolute URLs for data files. Default='https://ligo.gravity.cf.ac.uk/~chris.north/gwcat-data/
             * verbose [boolean, optional]: set for verbose output. Default=False
             * mode [string, optional]: mode. Default=public
         Outputs:
@@ -199,6 +200,7 @@ class GWCat(object):
             os.mkdir(dataDir)
         if baseurl[-1]!='/':baseurl=baseurl+'/'
         self.baseurl=baseurl
+        self.dataurl=dataurl
         self.statusFile=os.path.join(dataDir,statusFile)
         
         self.mode=mode
@@ -1147,7 +1149,14 @@ class GWCat(object):
                 if not 'deltaOmega' in self.data[ev]:
                     if verbose:print('recalculating area')
                     self.calcAreas(ev,verbose=verbose)
-            # fitsFile=self.status[ev]['mapdatelocal']
+            try:
+                fitsFile=self.status[ev]['mapurllocal']
+                self.addLink(ev,{'url':self.rel2abs(fitsFile,url=self.dataurl),'text':'Sky Map (local mirror)',
+                    'type':'skymap-fits-local'})
+                if verbose:print('added map link: {}'.format(fitsFile))
+            except:
+                if verbose:print('failed to add map link for {}: '.format(ev,self.status[ev].get('mapurllocal','UNKNOWN')))
+
         return
 
     def getMap(self,ev,verbose=False):
