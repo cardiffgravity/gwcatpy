@@ -17,7 +17,7 @@ catlist={'GWTC':{'type':'confident'},
     'GWTC-2.1-auxiliary':{'type':'marginal'},
     'GWTC-3-marginal':{'type':'marginal'},
 }
-    
+
 def cat2url(cat,devMode=False):
     roots={'dev':'https://openscience-dev.ligo.caltech.edu/eventapi/json/',
         'public':'https://www.gw-openscience.org/eventapi/json/'
@@ -31,7 +31,7 @@ def cat2url(cat,devMode=False):
         else:
             url=roots['public']+cat
     return url
-    
+
 def gps2obsrun(GPS):
     """Convert GPS to observing run
     Inputs:
@@ -103,11 +103,11 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         gwtcread=json.loads(gwtcresp.text)
     else:
         gwtcread=json.load(open(url,'r'))
-        
+
     gwtcin={'meta':{'retrieved':Time.now().isot,'src':url}}
     for s in gwtcread:
         gwtcin[s]=gwtcread[s]
-    
+
     gwtcdata={'meta':{'retrieved':Time.now().isot,'src':url}}
     evvers={}
     for entry in gwtcin['events']:
@@ -119,13 +119,13 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         if ver>evvers[evname]['latest']:
             evvers[evname]['latest']=ver
     # print(evvers)
-    
+
     gwtcdata['data']={}
     for ev in evvers:
         print(ev,evvers[ev],evvers[ev]['vers'][evvers[ev]['latest']])
         gwtcdata['data'][ev]=gwtcin['events'][evvers[ev]['vers'][evvers[ev]['latest']]]
         # print(gwtcdata['data'][ev])
-        
+
         # get zenodo
         evcat=gwtcdata['data'][ev]['catalog.shortName']
         zenFiles=[]
@@ -157,14 +157,14 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             else:
                 # zenFiles list already exists
                 zenFiles=catlist[evcat]['zenFiles']
-                
+
         if 'jsonurl' in gwtcdata['data'][ev]:
             jsonurl=gwtcdata['data'][ev]['jsonurl']
             if devMode:
                 jsonurl=jsonurl.replace('https://www.gw-openscience.org','https://openscience-dev.ligo.caltech.edu')
             # ***replace with local version***
             jsonurllocal='data/local-mirror/{}-v{}.json'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'])
-            if useLocal: 
+            if useLocal:
                 # fudge for local mirrors
                 gwtcdata['data'][ev]['jsonurl_local']=jsonurllocal
                 if gwtcdata['data'][ev]['catalog.shortName']=='GWTC-1-confident':
@@ -173,7 +173,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                     # replace GWTC-2 with local versions
                     jsonurl=jsonurllocal
             if verbose: print('Retrieving JSON {} data from {}'.format(ev,jsonurl))
-            
+
             try:
                 if devMode:
                     jsonresp = sess.get(jsonurl)
@@ -239,7 +239,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                         if verbose:print('map link for {}:{}'.format(ev,zenf))
             if 'strain' in evdata:
                 gwtcdata['data'][ev]['strain']=evdata['strain']
-    
+
     if export:
         if dirOut==None:
             dirOut='data/'
@@ -249,7 +249,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
         fOut=open(os.path.join(dirOut,fileOut),'w')
         json.dump(gwtcdata,fOut,indent=indent)
         fOut.close()
-    
+
     if verbose: print('Retrieved data for {} events'.format(len(gwtcdata['data'])))
     return gwtcdata
 
@@ -315,7 +315,7 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
         # conv = gwosc-name : gwcat-name
         print(catOut[e])
         catOut[e]['jsonURL']=gwtcin[e]['jsonurl']
-        
+
         srchname=gwtcin[e].get('search_parameter_tag','UNKNOWN')
         if srchname in gwtcin[e]['parameters']:
             if verbose:
@@ -336,7 +336,7 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             if (srchparam):
                 catOut[e][convsnr[c]]=srchparam
                 # catOut[e][convsnr[c]]['src']=psnrname
-        
+
         pname=gwtcin[e].get('parameter_tag','UNKNOWN')
         if pname in gwtcin[e]['parameters']:
             if verbose:
@@ -425,7 +425,7 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             else:
                 datalinklocal['filetype']='unknown'
             linksOut[e].append(datalinklocal)
-            
+
         if catlist[catOut[e]['catalog']]['type']=='marginal':
             if catOut[e]['name'][0]=='G':
                 catOut[e]['detType']={'best':'Marginal'}
@@ -452,10 +452,10 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             catOut[e]['meta']['zenodo_version']=gwtcin[e]['zenodo_version']
         if 'parameter_tag' in gwtcin[e]:
             catOut[e]['meta']['parameter_tag']=gwtcin[e]['parameter_tag']
-        
-    
+
+
     return ({'data':catOut,'links':linksOut})
-    
+
 def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx=None,verbose=False):
     """Extract parameters from GWTC2 HDF (.h5) files using pesummary
     Inputs:
@@ -491,7 +491,7 @@ def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx=None,verbose=False):
             return({'best':best,'err':[lower-best,upper-best]})
         else:
             return(None)
-    
+
     try:
         h5dat=read(h5File)
     except:
@@ -531,7 +531,7 @@ def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx=None,verbose=False):
             params[c]=h5samp.median[c][0]
             params[c+'_lower']=np.percentile(h5samp[c],5)-params[c]
             params[c+'_upper']=np.percentile(h5samp[c],95)-params[c]
-    
+
     for c in conv:
         pdict=None
         if conv[c] in datadict:
@@ -539,7 +539,7 @@ def geth5paramsGWTC2(h5File,pcheck={},datadict={},approx=None,verbose=False):
         param=paramConv(params,c,pdict,verbose=verbose)
         if (param):
             paramsOut[conv[c]]=param
-    
+
     if (h5dat.detectors):
         dets=''
         for d in h5dat.detectors[0]:
@@ -568,14 +568,14 @@ def paramConv(evdat,param,paramdict,verbose=False):
     if (paramdict):
         if 'sigfig' in paramdict:
             sigfig=paramdict['sigfig']
-    
+
     plo=param+'_lower'
     phi=param+'_upper'
     if plo in evdat and phi in evdat:
         haserr=True
     else:
         haserr=False
-    
+
     pOut={'best':evdat[param]}
     if haserr:
         if (evdat[plo]) and (evdat[phi]):
@@ -616,7 +616,7 @@ def getBestParam(gwtcin_e,datadict={'M1':None},conv=None,verbose=False,search=Fa
     if (pnbest):
         # preferred parameter set is found
         return pnbest
-    
+
     # compare parameter values and compare with "root" values
     chkroot=paramConv(gwtcin_e,c_chk,datadict[conv[c_chk]],verbose=False)
     if chkroot:
@@ -628,7 +628,7 @@ def getBestParam(gwtcin_e,datadict={'M1':None},conv=None,verbose=False,search=Fa
     peparam=[]
     srchparam=[]
     pdates=[]
-    
+
     for pn in gwtcin_e['parameters']:
         pnames.append(pn)
         # figure out if parameters are srch/PE parameters
@@ -660,7 +660,7 @@ def getBestParam(gwtcin_e,datadict={'M1':None},conv=None,verbose=False,search=Fa
     pchks=np.array(pchks)
     finchk=np.isfinite(pchks)
     findates=np.isfinite(pdates)
-    
+
     if search:
         if len(np.argwhere(srchparam))==1:
             pnbest=pnames[np.argwhere(srchparam)][0][0]

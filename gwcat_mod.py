@@ -52,7 +52,7 @@ def compareElement(el1,el2,verbose=False):
             * False: Elements are not the same
             * None: Elements can't be compared
     """
-    
+
     if type(el1)!=type(el2):
         # types are different
         if verbose: print('inconsistent types [{},{}]'.format(type(el1),type(el2)))
@@ -202,7 +202,7 @@ class GWCat(object):
         self.baseurl=baseurl
         self.dataurl=dataurl
         self.statusFile=os.path.join(dataDir,statusFile)
-        
+
         self.mode=mode
         if mode=='dev':
             self.devMode=True
@@ -224,7 +224,7 @@ class GWCat(object):
         else:
             self.meta={'created':Time.now().isot}
         return
-    
+
     def getEvent(self,ev):
         """Get event from database by event name
         Inputs:
@@ -456,7 +456,7 @@ class GWCat(object):
                         newParam['upper']=setPrec(newParam['upper'],sigfig+extraprec)
                 self.data[ev][p]=newParam
         return
-        
+
     def importGWTC(self,gwtcIn,verbose=False,devMode=False,forceOverwrite=False,catalog='GWTC'):
         """import GWTC data into catalogue. Uses gwosc.gwtc_to_cat to convert.
         Updates H5 source file.
@@ -509,9 +509,9 @@ class GWCat(object):
             self.meta[catalog]={}
         for m in gwtcIn['meta']:
             self.meta[catalog][m]=gwtcIn['meta'][m]
-                        
+
         return
-        
+
     def matchGraceDB(self,verbose=False):
         """match confirmed events with GraceDB events (assuming <1s GPS timestamp difference)
         Inputs:
@@ -523,7 +523,7 @@ class GWCat(object):
         gpslist=[]
         for ev in self.data:
             name=self.data[ev]['name']
-            gps=self.getParameter(ev,'GPS')                
+            gps=self.getParameter(ev,'GPS')
             if name[0]=='S':
                 try:
                     gps['best']
@@ -553,9 +553,9 @@ class GWCat(object):
                 # if len(maplink)==0 and len(mapgdb)>0:
                 #     if verbose:print('copying GraceDB map link from {} to {}: {}'.format(matchname,ev,mapgdb[0]))
                 #     self.addLink(ev,mapgdb[0],verbose=verbose)
-            
+
         return
-        
+
     # backwards compatibility
     def importGwosc(self,gwoscIn,verbose=False):
         """OBSOLETE - inpurt passed to importGWTC
@@ -566,7 +566,7 @@ class GWCat(object):
         """
         print('***WARNING: importGwosc replaced by importGWTC***')
         self.importGWTC(gwoscIn,verbose=verbose)
-    
+
     def importGraceDB(self,gracedbIn,verbose=False,forceUpdate=False):
         """import GraceDB data into catalogue. Uses gracedb.gracedb2cat to convert.
         Remove retracted events.
@@ -659,7 +659,7 @@ class GWCat(object):
         """
         # update h5 data files and parameters
         print('*** Updating data files...')
-        
+
         for ev in self.data:
             try:
                 if not ev in self.status:
@@ -724,7 +724,7 @@ class GWCat(object):
                     self.getH5Local(ev,verbose=verbose)
             else:
                 if verbose:print('No data file update required for {}'.format(ev))
-            
+
             # update data (if required)
             updateH5data=False
             try:
@@ -766,7 +766,7 @@ class GWCat(object):
             except:
                 if verbose: print('Error determining H5 data date/version for {}. Re-loading'.format(ev))
                 updateH5data=True
-                
+
             if updateH5data or forceUpdateData:
                 try:
                     h5File=self.status[ev]['h5urllocal']
@@ -828,7 +828,7 @@ class GWCat(object):
         url=ldat[0]['url']
         if verbose: print('Downloading data file for {} from {}'.format(ev,url))
         srcfile=os.path.split(url)[-1]
-        
+
         if self.devMode:
             h5req=self.sess.get(url)
         else:
@@ -885,7 +885,7 @@ class GWCat(object):
             print('ERROR: Problem loading h5 file:',h5req.status_code)
             return h5req.status_code
         return(0)
-        
+
     def extractTar(self,ev,statusid='tarurllocal',maponly=False,verbose=False):
         """Extract h5 and map file from tarfile
         Inputs:
@@ -894,7 +894,7 @@ class GWCat(object):
             * maponly [boolean, optional]: set to only extract the map file. Default=False
             * verbose [boolean, optional]: set for verbose output. Default=False
         Outputs:
-            * [number] HTTP status code if unsuccessful. 0 if not. 
+            * [number] HTTP status code if unsuccessful. 0 if not.
         """
         import tarfile
         tarFile=self.status[ev][statusid]
@@ -921,12 +921,12 @@ class GWCat(object):
             # catch for GWTC-3 zenodo filename error
             if n.find(ev.replace('GW200210_092254','GW200210_092255'))>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
-            
+
         # else:
         #     mapname=[n for n in tarNames if 'PublicationSamples.fits' in n]
         if verbose:print('map for {}:{}'.format(ev,mapname))
         out={'h5':'','map':''}
-        
+
         # extract h5 to h5 directory tarfile
         if not maponly:
             h5Dir=os.path.join(self.dataDir,'h5')
@@ -944,7 +944,7 @@ class GWCat(object):
                 out['h5']=h5File
             except:
                 pass
-            
+
         # extract fits to fits directory
         if len(mapname)>0:
             fitsDir=os.path.join(self.dataDir,'fits')
@@ -952,12 +952,12 @@ class GWCat(object):
                 # create directory
                 os.mkdir(fitsDir)
                 print('Created directory: {}'.format(fitsDir))
-            
+
             try:
                 tarF.extract(mapname[0],path=fitsDir)
                 mapFile=os.path.join(fitsDir,mapname[0])
                 if (verbose): print('Extracted Map to {}'.format(mapFile))
-                
+
                 # save location of map to status
                 # save location of h5 file to status
                 stat={'mapurllocal':mapFile,
@@ -978,7 +978,7 @@ class GWCat(object):
                 pass
         # return h5file and mapfile locations?
         return out
-        
+
     def getH5Local(self,ev,verbose=False):
         """Download h5 files from local file and update status with filenames, timestamps.
         Call extractTar if tarfile.
@@ -1028,7 +1028,7 @@ class GWCat(object):
             print('ERROR: Problem opening local data file for {}:'.format(ev),h5File)
             return
         return
-        
+
     def getH5Params(self,ev,approx=None,verbose=False):
         """Get parameters from H5 file for GWTC-2. Uses comparison of parameter to select best approximant if default isn't available.
         Inputs:
@@ -1061,7 +1061,7 @@ class GWCat(object):
             newparams=gwosc.geth5paramsGWTC2(h5File,pcheck={'M1':m1check},datadict=self.datadict,approx=approx,verbose=verbose)
             # if verbose:print(newparams)
         return(newparams)
-        
+
     def removeCandidates(self,verbose=False):
         """remove candidates that have a firm detection
         Inputs:
@@ -1203,7 +1203,7 @@ class GWCat(object):
             except:
                 print('ERROR: Problem loading map:',mapreq.status_code)
                 return mapreq.status_code
-                
+
         if lmap[0].get('filetype','')=='tar':
             print('NEED TO EXTRACT TARBALL')
             stat={'maptarurllocal':fitsFile,
@@ -1547,7 +1547,7 @@ class GWCat(object):
                     {'url':self.rel2abs(gravFile),'text':gravLinktxt,
                     'file':gravFile,'url-loc':'skymap-base-url',
                     'files':'skymap-plain','created':Time.now().isot})
-                    
+
             updateGravEq=False
             gravFileOnlyEq='{}_{}_eq.png'.format(ev,gravNpix)
             gravFileEq=os.path.join(gravDir,gravFileOnlyEq)
@@ -1569,7 +1569,7 @@ class GWCat(object):
                     {'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
                     'file':gravFileEq,'url-loc':'skymap-base-url',
                     'type':'skymaps-plain','created':Time.now().isot})
-            
+
             res4096=4
             gravNpix4096=int(res4096*1024)
             updateGravEq4096=False
@@ -1614,7 +1614,7 @@ class GWCat(object):
         Outputs:
             * None
         """
-        
+
         gravDir=os.path.join(self.dataDir,'gravoscope')
         dataDir=os.path.join(self.dataDir,'fits')
         for ev in self.events:
@@ -1772,7 +1772,7 @@ class GWCat(object):
             for i in idxOut:
                 self.links[ev].pop(i)
         return
-        
+
     def addLink(self,ev,link,replace=True,verbose=False):
         """Add or replace link(s) for event
         Inputs:
@@ -2187,7 +2187,7 @@ class GWCat(object):
         self.dataframe2json(datain,unitsin,linksin,mode=mode,verbose=verbose)
 
         return()
-    
+
     def addRefs(self,refsFile=None,verbose=False):
         """Add references from refs file
         Inputs:
@@ -2212,7 +2212,7 @@ class GWCat(object):
                     if r['type']=='skymap-fits':
                         self.updateMapSrc(ev,verbose=verbose)
         return
-    
+
     def makeWaveforms(self,verbose=False,overwrite=False):
         """Create waveforms for events and add to database.
         Inputs:
@@ -2326,7 +2326,7 @@ class GWCat(object):
             wfs[ev]['data']=Table({'t':t,'hp':hp,'hc':hc})
             # wfs[d]['data'].write('full-data/waveform_{}.csv'.format(d),format='ascii.csv',overwrite=True)
             if verbose:print('  produced {:.2f}s from {:.2f}Hz'.format(-t[0],f_lower))
-            
+
             # crop waveform
             cropt=np.where(wfs[ev]['data']['t']>-wfs[ev]['t25'])[0]
             hp=wfs[ev]['data']['hp'][cropt]
@@ -2340,7 +2340,7 @@ class GWCat(object):
                 wfs[ev]['datacomp'][l]['t']=round(wfs[ev]['datacomp'][l]['t'],5)
                 wfs[ev]['datacomp'][l]['strain*1e23']=round(wfs[ev]['datacomp'][l]['strain*1e23'],1)
             wfs[ev]['datacomp'].write(wfs[ev]['wfFile'],format='ascii.basic',delimiter=" ",overwrite=True)
-            
+
             # add link:
             if verbose: print('adding waveform link for {}'.format(ev))
             link={'url':self.rel2abs(wfs[ev]['wfFile']),'text':linktxt,
