@@ -773,10 +773,14 @@ class GWCat(object):
                 except:
                     if verbose:print('no local data file for {}'.format(ev))
                     continue
-                if 'approximant' in self.status[ev]:
-                    approx=self.status[ev]['approximant']
+                if 'approximant' in self.data[ev]:
+                    approx=self.data[ev]['approximant']
+                    if verbose:
+                        print('approximant found for {}: {}'.format(ev,self.data[ev]['approximant']))
                 else:
                     approx=None
+                    if verbose:
+                        print('no approximant found for {}'.format(ev))
                 newparams=self.getH5Params(ev,approx=approx,verbose=verbose)
                 if (newparams):
                     for p in newparams:

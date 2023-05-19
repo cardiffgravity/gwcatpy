@@ -42,7 +42,8 @@ def gps2obsrun(GPS):
     obsruns={'O1':[1126051217,1137254417],
         'O2':[1164556817,1187733618],
         'O3a':[1238112018,1253977218],
-        'O3b':[1256655618,1269363618]}
+        'O3b':[1256655618,1269363618],
+        'O4':[1366556418,1419724817]}
     obs=''
     for o in obsruns:
         if GPS > obsruns[o][0] and GPS < obsruns[o][1]:
@@ -195,8 +196,16 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             evname=evdata['commonName']
             if 'parameters' in evdata:
                 gwtcdata['data'][ev]['parameters']=evdata['parameters']
-                # find PE tag that matches
                 petag='UNKNOWN'
+                srchtag='UNKNOWN'
+                #find default PE and search tags
+                for par in evdata['parameters']:
+                    if evdata['parameters'][par]['is_preferred']:
+                        if evdata['parameters'][par]['pipeline_type']=='pe':
+                            petag=par
+                        elif evdata['parameters'][par]['pipeline_type']=='search':
+                            srchtag=par
+                # find PE tag that matches if not found
                 if not petag in evdata['parameters']:
                     petagbest=getBestParam(evdata,{'M1':None},{'mass_1_source':'M1'},verbose=verbose)
                     if petagbest:
@@ -209,7 +218,6 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                         gwtcdata['data'][ev]['data_link']=data_url
                         if useLocal:
                             gwtcdata['data'][ev]['data_link_local']='data/local-mirror/{}-v{}.{}'.format(gwtcdata['data'][ev]['commonName'],gwtcdata['data'][ev]['version'],data_url.split('.')[-1])
-                srchtag='UNKNOWN'
                 if not srchtag in evdata['parameters']:
                     srchtagbest=getBestParam(evdata,{'rho':None},{'network_matched_filter_snr':'rho'},verbose=verbose,search=True)
                     if srchtagbest:
@@ -353,6 +361,8 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
             param=paramConv(paramIn,c,pdict,verbose=verbose)
             if (param):
                 catOut[e][conv[c]]=param
+            if 'waveform_family' in paramIn:
+                catOut[e]['approximant']=paramIn['waveform_family']
 
         catOut[e]['obsrun']={'best':gps2obsrun(gwtcin[e]['GPS'])}
         if verbose:print('GPS={} ; obsrun={}'.format(gwtcin[e]['GPS'],catOut[e]['obsrun']))

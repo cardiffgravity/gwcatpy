@@ -58,6 +58,7 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
         catOut[g]['obsrun']={'best':'O3'}
         catOut[g]['detType']={'best':'Candidate'}
         catOut[g]['conf']={'best':'Candidate'}
+        catOut[g]['catalog']='gracedb'
         if 't_0' in gdbIn[g]:
             catOut[g]['GPS']={'best':gdbIn[g]['t_0']}
             dtIn=Time(gdbIn[g]['t_0'],format='gps')
