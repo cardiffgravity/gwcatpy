@@ -324,16 +324,16 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
         print(catOut[e])
         catOut[e]['jsonURL']=gwtcin[e]['jsonurl']
 
-        srchname=gwtcin[e].get('search_parameter_tag','UNKNOWN')
-        if srchname in gwtcin[e]['parameters']:
-            if verbose:
-                print('reading search parameters from {}'.format(srchname))
-                print(gwtcin[e]['parameters'][srchname])
-            srchparamIn=gwtcin[e]['parameters'][srchname]
-        else:
-            if verbose:
-                print('cannot find {} parameters. Using root parameters'.format(srchname))
-            srchparamIn=gwtcin[e]
+        # srchname=gwtcin[e].get('search_parameter_tag','UNKNOWN')
+        # if srchname in gwtcin[e]['parameters']:
+        #     if verbose:
+        #         print('reading search parameters from {}'.format(srchname))
+        #         print(gwtcin[e]['parameters'][srchname])
+        #     srchparamIn=gwtcin[e]['parameters'][srchname]
+        # else:
+        #     if verbose:
+        #         print('cannot find {} parameters. Using root parameters'.format(srchname))
+        srchparamIn=gwtcin[e]
         for c in convsnr:
             srchpdict=None
             if convsnr[c] in datadict:
