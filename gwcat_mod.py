@@ -1548,7 +1548,7 @@ class GWCat(object):
                     print('plotting Gravoscope for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFile,verbose=verbose,res=res)
                 self.addLink(ev,
-                    {'url':self.rel2abs(gravFile),'text':gravLinktxt,
+                    {'url':self.rel2abs(gravFile),'text':gravs['gal_8192']['text'],
                     'file':gravFile,'url-loc':'skymap-base-url',
                     'files':'skymap-plain','created':Time.now().isot})
 
@@ -1570,7 +1570,7 @@ class GWCat(object):
                     print('plotting Gravoscope (Equatorial) for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq,verbose=verbose,res=res,coord='C')
                 self.addLink(ev,
-                    {'url':self.rel2abs(gravFileEq),'text':gravLinkEqtxt,
+                    {'url':self.rel2abs(gravFileEq),'text':gravs['eq_8192']['text'],
                     'file':gravFileEq,'url-loc':'skymap-base-url',
                     'type':'skymaps-plain','created':Time.now().isot})
 
@@ -1594,7 +1594,7 @@ class GWCat(object):
                     print('plotting Gravoscope (Equatorial, 4096) for {} ({}x{})'.format(ev,gravNpix4096,int(gravNpix4096/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq4096,verbose=verbose,res=res4096,coord='C')
                 self.addLink(ev,
-                    {'url':self.rel2abs(gravFileEq4096),'text':gravLinkEq4096txt,
+                    {'url':self.rel2abs(gravFileEq4096),'text':gravs['eq_4096']['text'],
                     'file':gravFileEq4096,'url-loc':'skymap-base-url',
                     'type':'skymap-plain','created':Time.now().isot})
             # self.addLink(ev,

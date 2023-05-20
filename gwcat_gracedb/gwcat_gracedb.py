@@ -7,6 +7,24 @@ from bs4 import BeautifulSoup
 from astropy.time import Time
 from astropy import units as un
 
+def gps2obsrun(GPS):
+    """Convert GPS to observing run
+    Inputs:
+        * GPS [float]: sGPS timestamp
+    Outputs:
+        * [string] observing run
+    """
+    obsruns={'O1':[1126051217,1137254417],
+        'O2':[1164556817,1187733618],
+        'O3a':[1238112018,1253977218],
+        'O3b':[1256655618,1269363618],
+        'O4':[1366556418,1419724817]}
+    obs=''
+    for o in obsruns:
+        if GPS > obsruns[o][0] and GPS < obsruns[o][1]:
+            obs=o
+    return obs
+
 def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
     """Convert GraceDB data to gwcat format.
     Inputs:
@@ -55,7 +73,6 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
         catOut[g]={}
         linksOut[g]=[]
         if 'superevent_id' in gdbIn[g]: catOut[g]['name']=gdbIn[g]['superevent_id']
-        catOut[g]['obsrun']={'best':'O3'}
         catOut[g]['detType']={'best':'Candidate'}
         catOut[g]['conf']={'best':'Candidate'}
         catOut[g]['catalog']='gracedb'
@@ -64,6 +81,7 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
             dtIn=Time(gdbIn[g]['t_0'],format='gps')
             dtOut=Time(dtIn,format='iso').isot
             catOut[g]['UTC']={'best':dtOut}
+            catOut[g]['obsrun']={'best':gps2obsrun(gdbIn[g]['t_0'])}
         if 'far' in gdbIn[g]:
             catOut[g]['FAR']={'best':gdbIn[g]['far']*un.year.to('s')}
 
