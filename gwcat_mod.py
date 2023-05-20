@@ -1550,7 +1550,7 @@ class GWCat(object):
                 self.addLink(ev,
                     {'url':self.rel2abs(gravFile),'text':gravs['gal_8192']['text'],
                     'file':gravFile,'url-loc':'skymap-base-url',
-                    'files':'skymap-plain','created':Time.now().isot})
+                    'type':'skymap-plain','created':Time.now().isot})
 
             updateGravEq=False
             gravFileOnlyEq='{}_{}_eq.png'.format(ev,gravNpix)
