@@ -441,7 +441,7 @@ def gwtc_to_cat(gwtcdata,datadict,verbose=False,devMode=False,catalog='GWTC'):
                 catOut[e]['detType']={'best':'Marginal'}
                 catOut[e]['conf']={'best':'Marginal'}
             else:
-                catOut[e]['detType']={'best':'Candidate'}
+                catOut[e]['detType']={'best':'Marginal'}
                 catOut[e]['conf']={'best':'Candidate'}
         elif catlist[catOut[e]['catalog']]['type']=='confident':
             catOut[e]['detType']={'best':'GW'}
