@@ -1330,11 +1330,16 @@ class GWCat(object):
             if not 'mapurllocal' in self.status[ev]:
                 if verbose:print('unable to get map for {}'.format(ev))
                 continue
-            if lowSigMaps:
-                if self.data[ev].get('Significance'):
-                    if self.data[ev]['Significance']['best']=='Low':
-                        if verbose:print('skipping low-significance event {}'.format(ev))
+            if self.data[ev].get('Significance'):
+                if verbose:print('{} significance: {}'.format(ev,self.data[ev].get('Significance')))
+                if self.data[ev]['Significance']['best']=='Low':
+                    if lowSigMaps:
+                        if verbose:print('plotting maps for low-significance event {}'.format(ev))
+                    else:
+                        if verbose:print('SKIPPING maps for low-significance event {}'.format(ev))
                         continue
+                else:
+                    if verbose:print('plotting maps for high-significance event {}'.format(ev))
             filename=self.status[ev]['mapurllocal']
             # if verbose:print('plotting maps at {}'.format(filename))
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
