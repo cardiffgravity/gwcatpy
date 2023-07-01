@@ -116,6 +116,12 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
                         bestObjType=t
                         bestProb=float(xml['Classification'][t])
                 catOut[g]['objType']['best']=bestObjType
+            if 'Significant' in xml:
+                if float(xml['Significant'])==1:
+                    sig='High'
+                else:
+                    sig='Low'
+                catOut[g]['Significance']={'best':sig}
         if 'meta' in gdbIn[g]:
             catOut[g]['meta']=gdbIn[g]['meta']
         # update links
