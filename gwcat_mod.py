@@ -567,15 +567,17 @@ class GWCat(object):
         print('***WARNING: importGwosc replaced by importGWTC***')
         self.importGWTC(gwoscIn,verbose=verbose)
 
-    def importGraceDB(self,gracedbIn,verbose=False,forceUpdate=False):
+    def importGraceDB(self,gracedbIn,verbose=False,forceUpdate=False,highSigOnly=False):
         """import GraceDB data into catalogue. Uses gracedb.gracedb2cat to convert.
         Remove retracted events.
+        Remove low-significant events
         Update map source file.
         Export to dataframe
         Inputs:
             * gracedbIn [object]: event data
             * verbose [boolean, optional]: set for verbose output. Default=False
             * forceUpdate [boolean, optional]: set to force updates of gracedb events. Default=False (only update new events)
+            * highSigOnly [boolean, optional]: set to remove low significance events. Default=False (include low significance events)
         Outputs:
             * None
         """
@@ -593,6 +595,11 @@ class GWCat(object):
                     if verbose:print('Removing links for retracted event {}'.format(g))
                     self.links.pop(g)
                 continue
+            if highSigOnly:
+                if gdb['data'][g].get('Significance')=='Low':
+                    if g in self.data:
+                        if verbose:print('Removing data for low-significance event {}'.format(g))
+                        self.data.pop(g)
             # get old metadata
             dmeta={}
             if g in self.data:
@@ -1282,7 +1289,7 @@ class GWCat(object):
             url=self.baseurl
         return(url + rel)
 
-    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True):
+    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True,lowSigMaps=False):
         """Create maps of event localisations in various projections, zooms, styles etc.
         Save links to database.
         Inputs:
@@ -1290,6 +1297,7 @@ class GWCat(object):
             * verbose [boolean, optional]: set for verbose output. Default=False
             * logFile [string, optional]: set for output to logFile. Default=None (no logging)
             * updateLink [boolean, optional]: set to add/update link even if plot doesn't need making. Default=True
+            * lowSigMaps [boolean, optional]: set to plot maps for events marked low significance. Default=False
         Outputs:
             * None
         """
@@ -1322,6 +1330,11 @@ class GWCat(object):
             if not 'mapurllocal' in self.status[ev]:
                 if verbose:print('unable to get map for {}'.format(ev))
                 continue
+            if lowSigMaps:
+                if self.data[ev].get('Significance'):
+                    if self.data[ev]['Significance']['best']=='Low':
+                        if verbose:print('skipping low-significance event {}'.format(ev))
+                        continue
             filename=self.status[ev]['mapurllocal']
             # if verbose:print('plotting maps at {}'.format(filename))
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
