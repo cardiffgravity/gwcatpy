@@ -72,7 +72,7 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
             if 'Significant' in xml:
                 if xml['Significant']=='0':
                     if verbose: print('skipping Low-significance {}'.format(g))
-                    catOut[g]={'Significance':'Low'}
+                    # catOut[g]={'Significance':'Low'}
                     continue
 
         catOut[g]={}
@@ -164,7 +164,7 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
     client = GraceDb(service_url,force_noauth=True)
     if verbose: print('Limiting to {} days'.format(datelim))
     # Retrieve an iterator for events matching a query.
-    events = client.superevents('far < 1.0e-4')
+    events = client.superevents('far < 1.0e-6')
     # if verbose: print('retrieved {} events'.format(len(events)))
     # For each event in the search results, add the graceid
     # and chirp mass to a dictionary.
