@@ -600,6 +600,7 @@ class GWCat(object):
                     if g in self.data:
                         if verbose:print('Removing data for low-significance event {}'.format(g))
                         self.data.pop(g)
+                    continue
             # get old metadata
             dmeta={}
             if g in self.data:
