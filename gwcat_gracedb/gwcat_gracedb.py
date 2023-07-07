@@ -69,6 +69,11 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
                     if verbose: print('skipping Retraction {}'.format(g))
                     catOut[g]={'Retracted':True}
                     continue
+            if 'Significant' in xml:
+                if xml['Significant']=='0':
+                    if verbose: print('skipping Low-significance {}'.format(g))
+                    catOut[g]={'Significance':'Low'}
+                    continue
 
         catOut[g]={}
         linksOut[g]=[]
