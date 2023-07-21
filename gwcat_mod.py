@@ -589,18 +589,18 @@ class GWCat(object):
             if gdb['data'][g]['meta'].get('type')=='Retraction':
                 if verbose:print('Skipping retracted event {}'.format(g))
                 if g in self.data:
-                    if verbose:print('Removing data for retracted event {}'.format(g))
+                    print('Removing data for retracted event {}'.format(g))
                     self.data.pop(g)
                 if g in self.links:
-                    if verbose:print('Removing links for retracted event {}'.format(g))
+                    print('Removing links for retracted event {}'.format(g))
                     self.links.pop(g)
                 continue
             if highSigOnly:
                 if gdb['data'][g].get('Significance')=='Low':
                     if g in self.data:
-                        if verbose:print('Removing data for low-significance event {}'.format(g))
+                        print('Removing data for low-significance event {}'.format(g))
                         self.data.pop(g)
-                    if verbose:print('Skipping low-significance event {}'.format(g))
+                    print('Skipping low-significance event {}'.format(g))
                     continue
             # get old metadata
             dmeta={}
