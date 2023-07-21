@@ -502,7 +502,10 @@ def getRaDecRange(map,lim=0.5,ltype='max',border=0,verbose=False):
     for ra in [raMin,raMax,np.mean([raMin,raMax])]:
         for dec in [decMin,decMax,np.mean([decMin,decMax])]:
             dist=hp.rotator.angdist([ra,dec],[raPeak,decPeak],lonlat=True)
-            maxdist=np.max([dist,maxdist])
+            try:
+                maxdist=np.max([dist,maxdist])
+            except:
+                print('WARNING: error calculating max of [distance {}, maxdistance {}] for ra {} dec {}'.format(dist,maxdist,ra,dec))
     maxdist=np.min([maxdist*180./np.pi,90])
 
     if verbose: print('RA range=[{:.1f},{:.1f}] ; Dec range=[{:.1f},{:.1f}]'.format(raMin,raMax,decMin,decMax))
