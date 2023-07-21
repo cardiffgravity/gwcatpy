@@ -271,10 +271,21 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
                             if 'skymap_fits' in xml['GW_SKYMAP']:
                                 mapfile=xml['GW_SKYMAP']['skymap_fits']
                                 evOut['mapfile']=[os.path.split(mapfile)[-1],mapfile]
-                        if xml.get('Significance')==0 and highSigOnly:
-                            evOut['meta']['include']=False
+                        if 'Significant' in xml:
+                            if xml.get('Significant')=="0":
+                                if highSigOnly:
+                                    evOut['meta']['include']=False
+                                    print('Not including low-significance event {} [{}].'.format(sid,xml.get('Significant')))
+                                else:
+                                    print('Including low-significance event {} [{}].'.format(sid,xml.get('Significant')))
+                                    evOut['meta']['include']=True
+                            else:
+                                print('Including high-significance event {} [{}].'.format(sid,xml.get('Significant')))
+                                evOut['meta']['include']=True
                         else:
+                            print('Including unknown significance event {} [{}].'.format(sid,xml.get('Significant')))
                             evOut['meta']['include']=True
+                        if evOut['meta']['include']:
                             if logFile:
                                 logF.write(sid+'\n')
                         evOut['xml']=xml
