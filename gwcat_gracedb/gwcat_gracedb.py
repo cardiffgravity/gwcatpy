@@ -144,7 +144,7 @@ def gracedb2cat(gdb,verbose=False,knownEvents={},forceUpdate=False):
 
     return {'data':catOut,'links':linksOut}
 
-def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,knownEvents={},forceUpdate=False,datelim=999,logFile=None):
+def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,knownEvents={},forceUpdate=False,datelim=999,logFile=None,highSigOnly=False):
     """Get GWTC from GWOSC json files and add parameters.
     Inputs:
         * export [boolean, optional]: set for export to JSON file output. Default=False
@@ -156,6 +156,7 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
         * forceUpdate [boolean, optional]: set to force output of all events, not just updated ones. Default=False
         * datelim [integer, optional]: number of days old to skip events for. Default=999
         * lodGile [string, optional]: logFile to output logging to. Default=None (no logging)
+        * highSigOnly [boolean, optional]: set to remove low significance events. Default=False (include low significance events)
     Outputs:
         * [object] object containing data (can be read by gwcatpy.importGWTC)
     """
@@ -244,9 +245,6 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
 
                 evOut['xmlfile']=[os.path.split(thisvoe_url)[-1],thisvoe_url]
                 if update:
-                    if logFile:
-                        logF.write(sid+'\n')
-
                     # parse XML
                     xml={}
                     if verbose: print('  parsing {}'.format(evOut['xmlfile'][0]))
@@ -258,6 +256,7 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
                         validXML=True
                     except:
                         print('problem with {}: {}'.format(sid,evOut['xmlfile'][0]))
+                    evOut['validXML']=validXML
                     if validXML:
                         for p in params:
                             xml[p.attrs['name']]=p.attrs['value']
@@ -272,6 +271,12 @@ def getSuperevents(export=False,dirOut=None,fileOut=None,indent=2,verbose=False,
                             if 'skymap_fits' in xml['GW_SKYMAP']:
                                 mapfile=xml['GW_SKYMAP']['skymap_fits']
                                 evOut['mapfile']=[os.path.split(mapfile)[-1],mapfile]
+                        if xml.get('Significance')==0 and highSigOnly:
+                            evOut['meta']['include']=False
+                        else:
+                            evOut['meta']['include']=True
+                            if logFile:
+                                logF.write(sid+'\n')
                         evOut['xml']=xml
                 nvo-=1
             evOut['meta']['validXML']=validXML
