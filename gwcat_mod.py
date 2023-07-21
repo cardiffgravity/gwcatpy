@@ -600,6 +600,9 @@ class GWCat(object):
                     if g in self.data:
                         print('Removing data for low-significance event {}'.format(g))
                         self.data.pop(g)
+                    if g in self.data:
+                        print('Removing links for low-significance event {}'.format(g))
+                        self.links.pop(g)
                     print('Skipping low-significance event {}'.format(g))
                     continue
             # get old metadata
