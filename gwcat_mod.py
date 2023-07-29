@@ -2081,13 +2081,25 @@ class GWCat(object):
             print('Error finding value %s for parameter %s in event %s'%(value,param,event))
             return np.NaN
 
-    def exportJson(self,fileout,dir='',verbose=False):
+    def exportJson(self,fileout,dir='',verbose=False,contents='all'):
         """Export parameters, data and links to single JSON file
         Inputs:
             * fileout [string]: filename to write all data to
             * dir [string OPTIONAL]: directory to write files to. Default=''
+            * contents [string OPTIONAL]: contents of file ('all','data','links','datadict'). Default='all'
         """
-        alldata={'meta':self.meta,'datadict':self.datadict,'data':self.data,'links':self.links}
+        if contents=='all':
+            alldata={'meta':self.meta,'datadict':self.datadict,'data':self.data,'links':self.links}
+            alldata['meta']['contents']={'data':True,'links':True,'datadict':True}
+        elif contents=='data':
+            alldata={'meta':self.meta,'data':self.data}
+            alldata['meta']['contents']={'data':True,'links':False,'datadict':False}
+        elif contents=='links':
+            alldata={'meta':self.meta,'links':self.links}
+            alldata['meta']['contents']={'data':False,'links':True,'datadict':False}
+        elif contents=='datadict':
+            alldata={'meta':self.meta,'links':self.links}
+            alldata['meta']['contents']={'data':False,'links':False,'datadict':True}
         if verbose: print('Writing data to JSON: {}'.format(os.path.join(dir,fileout)))
         json.dump(alldata,open(os.path.join(dir,fileout),'w'),indent=4)
 
