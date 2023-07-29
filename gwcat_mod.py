@@ -2098,7 +2098,7 @@ class GWCat(object):
             alldata={'meta':self.meta,'links':self.links}
             alldata['meta']['contents']={'data':False,'links':True,'datadict':False}
         elif contents=='datadict':
-            alldata={'meta':self.meta,'links':self.links}
+            alldata={'meta':self.meta,'datadict':self.datadict}
             alldata['meta']['contents']={'data':False,'links':False,'datadict':True}
         if verbose: print('Writing data to JSON: {}'.format(os.path.join(dir,fileout)))
         json.dump(alldata,open(os.path.join(dir,fileout),'w'),indent=4)
