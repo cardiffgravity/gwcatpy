@@ -1282,7 +1282,7 @@ class GWCat(object):
             #     print('WARNING: Problem calculating area for {}'.format(ev))
                 # return
 
-    def rel2abs(self,rel,url=None):
+    def rel2abs(self,rel,data=False,url=None):
         """Convert relative to absolute URL (for links)
         Inputs:
             * rel [string]: relative URL to use
@@ -1291,7 +1291,10 @@ class GWCat(object):
             * [string] absolute url
         """
         if url==None:
-            url=self.baseurl
+            if data:
+                url=self.dataurl
+            else:
+                url=self.baseurl
         return(url + rel)
 
     def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True,lowSigMaps=False):
@@ -1624,7 +1627,7 @@ class GWCat(object):
             #     {'url':self.rel2abs(''),'text':'Skymap base url',
             #     'type':'skymap-base-url','created':Time.now().isot})
             self.addLink(ev,
-                {'url':self.rel2abs(gravDir),'text':'Skymaps (plain)',
+                {'url':self.rel2abs(gravDir,data=True),'text':'Skymaps (plain)',
                 'type':'skymaps-plain','created':Time.now().isot,
                 'files':gravs})
 
@@ -2382,7 +2385,7 @@ class GWCat(object):
 
             # add link:
             if verbose: print('adding waveform link for {}'.format(ev))
-            link={'url':self.rel2abs(wfs[ev]['wfFile']),'text':linktxt,
+            link={'url':self.rel2abs(wfs[ev]['wfFile'],data=True),'text':linktxt,
                 'type':'waveform-compressed','created':Time.now().isot,'offset':float('{:.5f}'.format(-wfs[ev]['t30'])),'tmerge':0.0}
             self.addLink(ev,link)
         return
