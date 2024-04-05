@@ -214,6 +214,9 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                 if petag in evdata['parameters']:
                     params=evdata['parameters'][petag]
                     gwtcdata['data'][ev]['parameter_tag']=petag
+                    if 'links' in params:
+                        if 'skymap' in params['links']:
+                            gwtcdata['data'][ev]['map_link']=params['links']['skymap']
                     if 'data_url' in params:
                         data_url=params['data_url']
                         gwtcdata['data'][ev]['data_link']=data_url
