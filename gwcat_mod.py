@@ -857,6 +857,8 @@ class GWCat(object):
                 #     fileext='fits'
                 if srcfile.find(ev)<0:
                     h5File=os.path.join(h5Dir,'{}_{}'.format(ev,srcfile))
+                    if h5File.find('.h')<0:
+                        h5File=h5File+'.h5'
                 else:
                     h5File=os.path.join(h5Dir,srcfile)
                 fOut=open(h5File,'wb')
@@ -1054,7 +1056,7 @@ class GWCat(object):
         Outputs:
             * [object] dict containing new parameters. None if not GWTC2
         """
-        validcats={'GWTC-2':{'approx':'PublicationSamples'},'GWTC-2.1-confident':{},'O3_Discovery_Papers':{'approx':'PublicationSamples'},'GWTC-3-confident':{'approx':'C01:Mixed'}}
+        validcats={'GWTC-2':{'approx':'PublicationSamples'},'GWTC-2.1-confident':{},'O3_Discovery_Papers':{'approx':'PublicationSamples'},'GWTC-3-confident':{'approx':'C01:Mixed'},'O4_Discovery_Papers':{}}
         if not self.getParameter(ev,'catalog') in validcats:
             if verbose:print('not valid catalogue')
             newparams=None
@@ -1901,7 +1903,7 @@ class GWCat(object):
                     dataOut[d+'_valtype'][e]='upper'
         # convert to series
         for dOut in dataOut:
-            series[dOut]=pd.Series(dataOut[dOut],index=dataOut[dOut].keys())
+            series[dOut]=pd.Series(dataOut[dOut],index=dataOut[dOut].keys(),dtype=object)
             # rows.append(d)
         # combine into DataFrame
         events=pd.DataFrame(series).T
