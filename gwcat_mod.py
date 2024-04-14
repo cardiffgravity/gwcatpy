@@ -843,8 +843,17 @@ class GWCat(object):
             if verbose: print('WARNING: more than one data file link for {}'.format(ev))
         url=ldat[0]['url']
         if verbose: print('Downloading data file for {} from {}'.format(ev,url))
-        srcfile=os.path.split(url)[-1]
-
+        if url.find("zenodo")>=0 and url.find("content")>=0:
+            try:
+                # New Zenodo format file
+                zenurl=url.replace("/content","")
+                srcfile=os.path.split(zenurl)[-1]
+                if verbose: print('Zenodo src file:',zenurl,os.path.split(zenurl),srcfile)
+            except:
+                srcfile=os.path.split(url)[-1]
+        else:
+            srcfile=os.path.split(url)[-1]
+        
         if self.devMode:
             h5req=self.sess.get(url)
         else:
@@ -1199,7 +1208,16 @@ class GWCat(object):
             if verbose: print('WARNING: more than one skymap link for {}',format(ev))
         url=lmap[0]['url']
         if verbose: print('Downloading skymap for {} from {}'.format(ev,url))
-        srcfile=os.path.split(url)[-1]
+        if url.find("zenodo")>=0 and url.find("content")>=0:
+            try:
+                # New Zenodo format file
+                zenurl=url.replace("/content","")
+                srcfile=os.path.split(zenurl)[-1]
+                if verbose: print('Zenodo src file:',srcfile)
+            except:
+                srcfile=os.path.split(url)[-1]
+        else:
+            srcfile=os.path.split(url)[-1]
         if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.find('skymaps.tar.gz')<0:
             fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
             if fitsFile.find('.fits')<0:
