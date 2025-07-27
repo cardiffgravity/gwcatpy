@@ -1319,7 +1319,7 @@ class GWCat(object):
                 url=self.baseurl
         return(url + rel)
 
-    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True,lowSigMaps=False):
+    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True,lowSigMaps=False,event=None):
         """Create maps of event localisations in various projections, zooms, styles etc.
         Save links to database.
         Inputs:
@@ -1328,6 +1328,7 @@ class GWCat(object):
             * logFile [string, optional]: set for output to logFile. Default=None (no logging)
             * updateLink [boolean, optional]: set to add/update link even if plot doesn't need making. Default=True
             * lowSigMaps [boolean, optional]: set to plot maps for events marked low significance. Default=False
+            * event [string]: set to limit to one single event
         Outputs:
             * None
         """
@@ -1350,6 +1351,12 @@ class GWCat(object):
             os.mkdir(gravDir)
         # print(self.data)
         for ev in self.data:
+            if event!="" and event!=None:
+                if ev!=event:
+                    if verbose: print('no map plotting for {}'.format(ev))
+                    continue
+                else:
+                    if verbose: print("***PLOTTING SINGLE EVENT {}".format(ev))
             print('plotting {}'.format(ev))
             # if not 'mapurlsrc' in self.status[ev]:
             #     if verbose:
@@ -1657,12 +1664,13 @@ class GWCat(object):
             logF.close()
         return
 
-    def makeGravoscopeTilesPerl(self,overwrite=False,verbose=False):
+    def makeGravoscopeTilesPerl(self,overwrite=False,verbose=False,event=None):
         """OBSOLETE Create tile-sets of event localisation maps using perl script for use with Gravoscope.
         Save links to database.
         Inputs:
             * overwrite [boolean, optional]: set to overwrite all plots. Default=False (only output those needed)
             * verbose [boolean, optional]: set for verbose output. Default=False
+            * event [string, optional]: set to plot for single event. Default=None
         Outputs:
             * None
         """
@@ -1670,6 +1678,12 @@ class GWCat(object):
         gravDir=os.path.join(self.dataDir,'gravoscope')
         dataDir=os.path.join(self.dataDir,'fits')
         for ev in self.events:
+            if event!="" and event !=None:
+                if ev != event:
+                    if verbose: print("skipping gravoscope for {}".format(ev))
+                    continue
+                else:
+                    if verbose: print("PLOTTING GRAVOSCOPE FOR SINGLE EVENT {}".format(ev))
             fitsCreated=Time(self.status[ev]['mapdatelocal'])
             res=8
             gravNpix=int(8*1024)
@@ -2277,11 +2291,12 @@ class GWCat(object):
                         self.updateMapSrc(ev,verbose=verbose)
         return
 
-    def makeWaveforms(self,verbose=False,overwrite=False):
+    def makeWaveforms(self,verbose=False,overwrite=False,event=None):
         """Create waveforms for events and add to database.
         Inputs:
             * overwrite [boolean, optional]: set to overwrite all waveforms, not just new ones. Default=False
             * verbose [boolean, optional]: set for verbose output. Default=False
+            * event [string, optional]: set to process single event. Default=None
         Outputs:
             * None
         """
@@ -2303,6 +2318,12 @@ class GWCat(object):
             os.mkdir(wfDirFull)
         wfs={}
         for ev in self.events:
+            if event!="" and event!=None:
+                if ev != event:
+                    if verbose: print("skipping waveform for {}".format(ev))
+                    continue
+                else:
+                    if verbose: print("CALCULATING WAVEFORM FOR SINGLE EVENT {}".format(ev))
             # check parameters exist
             M1Param=self.getParameter(ev,'M1')
             M2Param=self.getParameter(ev,'M2')
