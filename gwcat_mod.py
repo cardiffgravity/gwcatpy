@@ -675,10 +675,9 @@ class GWCat(object):
         for ev in self.data:
             if event!="" and event!=None:
                 if ev!=event:
-                    if verbose: print('no map plotting for {}'.format(ev))
                     continue
                 else:
-                    if verbose: print("***PLOTTING SINGLE EVENT {}".format(ev))
+                    if verbose: print("***PROCESSING H5 FOR SINGLE EVENT {}".format(ev))
             try:
                 if not ev in self.status:
                     self.status[ev]={}
@@ -1132,10 +1131,9 @@ class GWCat(object):
         for ev in self.data:
             if event!="" and event!=None:
                 if ev!=event:
-                    if verbose: print('no map plotting for {}'.format(ev))
                     continue
                 else:
-                    if verbose: print("***PLOTTING SINGLE EVENT {}".format(ev))
+                    if verbose: print("***UPDATING MAPS FOR SINGLE EVENT {}".format(ev))
             if verbose: print('Checking map status for {}'.format(ev))
             # compare map creation dates
             try:
@@ -1365,10 +1363,9 @@ class GWCat(object):
         for ev in self.data:
             if event!="" and event!=None:
                 if ev!=event:
-                    if verbose: print('no map plotting for {}'.format(ev))
                     continue
                 else:
-                    if verbose: print("***PLOTTING SINGLE EVENT {}".format(ev))
+                    if verbose: print("***PLOTTING MAPS FOR SINGLE EVENT {}".format(ev))
             print('plotting {}'.format(ev))
             # if not 'mapurlsrc' in self.status[ev]:
             #     if verbose:
@@ -1692,7 +1689,6 @@ class GWCat(object):
         for ev in self.events:
             if event!="" and event !=None:
                 if ev != event:
-                    if verbose: print("skipping gravoscope for {}".format(ev))
                     continue
                 else:
                     if verbose: print("PLOTTING GRAVOSCOPE FOR SINGLE EVENT {}".format(ev))
@@ -2332,7 +2328,6 @@ class GWCat(object):
         for ev in self.events:
             if event!="" and event!=None:
                 if ev != event:
-                    if verbose: print("skipping waveform for {}".format(ev))
                     continue
                 else:
                     if verbose: print("CALCULATING WAVEFORM FOR SINGLE EVENT {}".format(ev))
