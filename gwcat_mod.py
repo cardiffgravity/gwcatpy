@@ -1070,7 +1070,7 @@ class GWCat(object):
         Outputs:
             * [object] dict containing new parameters. None if not GWTC2
         """
-        validcats={'GWTC-2':{'approx':'PublicationSamples'},'GWTC-2.1-confident':{},'O3_Discovery_Papers':{'approx':'PublicationSamples'},'GWTC-3-confident':{'approx':'C01:Mixed'},'O4_Discovery_Papers':{}}
+        validcats={'GWTC-2':{'approx':'PublicationSamples'},'GWTC-2.1-confident':{},'O3_Discovery_Papers':{'approx':'PublicationSamples'},'GWTC-3-confident':{'approx':'C01:Mixed'},'O4_Discovery_Papers':{},'GWTC-4.0':{}}
         if not self.getParameter(ev,'catalog') in validcats:
             if verbose:print('not valid catalogue')
             newparams=None
