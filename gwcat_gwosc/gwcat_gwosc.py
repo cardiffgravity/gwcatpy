@@ -17,6 +17,7 @@ catlist={'GWTC':{'type':'confident'},
     'GWTC-2.1-marginal':{'type':'marginal'},
     'GWTC-2.1-auxiliary':{'type':'marginal'},
     'GWTC-3-marginal':{'type':'marginal'},
+    'GWTC-4.0':{'type':'confident','zenodo':'16053484'},
 }
 
 def cat2url(cat,devMode=False):
