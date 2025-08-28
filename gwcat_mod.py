@@ -657,7 +657,7 @@ class GWCat(object):
             except:
                 print('WARNING: Error loading data file for {}:'.format(ev),l)
 
-    def updateH5(self,verbose=False,forceUpdate=False,forceUpdateData=False,replace=False):
+    def updateH5(self,verbose=False,forceUpdate=False,forceUpdateData=False,replace=False,event=None):
         """Check whether H5 files need updating and re-download if necessary (using getH5 or getH5Local).
         Update parameters from H5 files.
         Inputs:
@@ -673,6 +673,12 @@ class GWCat(object):
         print('*** Updating data files...')
 
         for ev in self.data:
+            if event!="" and event!=None:
+                if ev!=event:
+                    if verbose: print('no map plotting for {}'.format(ev))
+                    continue
+                else:
+                    if verbose: print("***PLOTTING SINGLE EVENT {}".format(ev))
             try:
                 if not ev in self.status:
                     self.status[ev]={}
@@ -1112,7 +1118,7 @@ class GWCat(object):
                 self.links.pop(remev)
         return
 
-    def updateMaps(self,verbose=False,forceUpdate=False):
+    def updateMaps(self,verbose=False,forceUpdate=False,event=None):
         """Check whether map files need updating and re-download if necessary (using getMap).
         Update 90% area.
         Inputs:
@@ -1124,6 +1130,12 @@ class GWCat(object):
         """
         print('*** Updating maps...')
         for ev in self.data:
+            if event!="" and event!=None:
+                if ev!=event:
+                    if verbose: print('no map plotting for {}'.format(ev))
+                    continue
+                else:
+                    if verbose: print("***PLOTTING SINGLE EVENT {}".format(ev))
             if verbose: print('Checking map status for {}'.format(ev))
             # compare map creation dates
             try:
