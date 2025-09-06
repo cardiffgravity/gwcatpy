@@ -1228,7 +1228,7 @@ class GWCat(object):
                 srcfile=os.path.split(url)[-1]
         else:
             srcfile=os.path.split(url)[-1]
-        if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.find('skymaps.tar.gz')<0:
+        if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.lower().find('skymaps.tar.gz')<0:
             fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
             if fitsFile.find('.fits')<0:
                 fitsFile=fitsFile+'.fits'
