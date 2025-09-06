@@ -252,7 +252,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                         except:
                             print('unable to get zenodo version number from:',zenf)
                         if verbose:print('zenodo data link for {}:{}'.format(ev,zenf))
-                    if zenf.find('skymaps.tar.gz')>=0 or zenf.find('SkyMaps.tar.gz')>=0:
+                    if zenf.lower().find('skymaps.tar.gz')>=0:
                         gwtcdata['data'][ev]['map_link']=zenf.replace('\n','')
                         if verbose:print('map link for {}:{}'.format(ev,zenf))
             if 'strain' in evdata:
