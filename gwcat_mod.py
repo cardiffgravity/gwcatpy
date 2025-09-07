@@ -951,6 +951,9 @@ class GWCat(object):
             # GWTC-3 filename
             elif n.find(ev)>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
+            elif n.find(ev)>=0:
+                # find the first one it comes to
+                mapname.append(n)
             # catch for GWTC-3 zenodo filename error
             if n.find(ev.replace('GW200210_092254','GW200210_092255'))>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
