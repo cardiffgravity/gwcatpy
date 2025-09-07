@@ -1262,6 +1262,7 @@ class GWCat(object):
         else:
             srcfile=os.path.split(url)[-1]
         if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.lower().find('skymaps.tar.gz')<0:
+            # if not zenodo file or skymaps compilation add event name to filename
             fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
             if fitsFile.find('.fits')<0:
                 fitsFile=fitsFile+'.fits'
@@ -1277,10 +1278,13 @@ class GWCat(object):
             else:
                 mapreq=requests.get(url)
             try:
-                fOut=open(fitsFile,'wb')
-                fOut.write(mapreq.content)
-                fOut.close()
-                if verbose:print('Map downloaded from {} to {}'.format(srcfile,fitsFile))
+                if fitsFile.lower().find('skymaps')>=0 and os.path.exists(fitsFile):
+                    print('Map already exists at {}. Not downloading'.format(fitsFile))
+                else:
+                    fOut=open(fitsFile,'wb')
+                    fOut.write(mapreq.content)
+                    fOut.close()
+                    if verbose:print('Map downloaded from {} to {}'.format(srcfile,fitsFile))
             except:
                 print('ERROR: Problem loading map:',mapreq.status_code)
                 return mapreq.status_code
