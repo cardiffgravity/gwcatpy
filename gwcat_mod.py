@@ -1273,21 +1273,21 @@ class GWCat(object):
             if verbose: print('copying local file from {} to {}'.format(srcfile,fitsFile))
             os.system('copy {} {}'.format(url,fitsFile))
         else:
-            if self.devMode:
-                mapreq=self.sess.get(url)
+            if fitsFile.lower().find('skymaps')>=0 and os.path.exists(fitsFile):
+                print('Map already exists at {}. Not downloading'.format(fitsFile))
             else:
-                mapreq=requests.get(url)
-            try:
-                if fitsFile.lower().find('skymaps')>=0 and os.path.exists(fitsFile):
-                    print('Map already exists at {}. Not downloading'.format(fitsFile))
+                if self.devMode:
+                    mapreq=self.sess.get(url)
                 else:
+                    mapreq=requests.get(url)
+                try:
                     fOut=open(fitsFile,'wb')
                     fOut.write(mapreq.content)
                     fOut.close()
                     if verbose:print('Map downloaded from {} to {}'.format(srcfile,fitsFile))
-            except:
-                print('ERROR: Problem loading map:',mapreq.status_code)
-                return mapreq.status_code
+                except:
+                    print('ERROR: Problem loading map:',mapreq.status_code)
+                    return mapreq.status_code
 
         if lmap[0].get('filetype','')=='tar':
             print('NEED TO EXTRACT TARBALL')
