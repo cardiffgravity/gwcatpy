@@ -938,21 +938,26 @@ class GWCat(object):
         if len(h5name)>0:
             h5name=h5name[0]
         mapname=[]
+        mapfound=False
+        if 'approximant' in self.status[ev]:
+            tarapprox=self.status[ev]['approximant'].replace('C00','').replace('C01','')
+        else:
+            tarapprox='###NONE###'
         for n in tarNames:
             # GWTC-2 filename
             if n.find('PublicationSamples.fits')>=0:
                 # for GWTC-2
                 mapname.append(n)
-            # GWTC-2.1 and later filename
-            elif 'approximant' in self.status[ev]:
-                tarapprox=self.status[ev]['approximant'].replace('C00','')
-                if n.find(ev)>=0 and n.find(tarapprox)>=0:
+            # GWTC-2.1 and GWTC-4.0 filename
+            elif n.find(ev)>=0 and n.find(tarapprox)>=0:
                     mapname.append(n)
+                    mapfound=True
             # GWTC-3 filename
             elif n.find(ev)>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
-            elif n.find(ev)>=0:
-                # lsit all, and later find the first one it comes to
+                mapfound=True
+            elif n.find(ev)>=0 and mapfound==False:
+                # lsit all, and later find the first one it comes to!
                 mapname.append(n)
             # catch for GWTC-3 zenodo filename error
             if n.find(ev.replace('GW200210_092254','GW200210_092255'))>=0 and n.find('Mixed.fits')>=0:
@@ -1032,7 +1037,7 @@ class GWCat(object):
                     'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
                 pass
         else:
-            print('no map found for {} in {}'.format(ev,tarFile))
+            print('no map found for {} (approx {}) in {}'.format(ev,tarapproxtarFile))
         # return h5file and mapfile locations?
         return out
 
