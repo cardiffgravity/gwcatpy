@@ -940,7 +940,7 @@ class GWCat(object):
         mapname=[]
         mapfound=False
         if 'approximant' in self.status[ev]:
-            tarapprox=self.status[ev]['approximant'].replace('C00','').replace('C01','')
+            tarapprox=self.status[ev]['approximant'].replace('C00:','').replace('C01:','')
         else:
             tarapprox='###NONE###'
         for n in tarNames:
