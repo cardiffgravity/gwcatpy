@@ -943,12 +943,13 @@ class GWCat(object):
             if n.find('PublicationSamples.fits')>=0:
                 # for GWTC-2
                 mapname.append(n)
-            # GWTC-2.1 filename
-            if 'approximant' in self.status[ev]:
-                if n.find(ev)>=0 and n.find(self.status[ev]['approximant'])>=0:
+            # GWTC-2.1 and later filename
+            elif 'approximant' in self.status[ev]:
+                tarapprox=self.status[ev]['approximant'].replace('C00','')
+                if n.find(ev)>=0 and n.find(tarapprox)>=0:
                     mapname.append(n)
             # GWTC-3 filename
-            if n.find(ev)>=0 and n.find('Mixed.fits')>=0:
+            elif n.find(ev)>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
             # catch for GWTC-3 zenodo filename error
             if n.find(ev.replace('GW200210_092254','GW200210_092255'))>=0 and n.find('Mixed.fits')>=0:
@@ -1008,6 +1009,8 @@ class GWCat(object):
             except:
                 print('WARNING: Error extracting {} map {} from tar {}'.format(ev,mapname[0],tarFile))
                 pass
+        else:
+            print('no map found for {} in {}'.format(ev,tarFile))
         # return h5file and mapfile locations?
         return out
 
