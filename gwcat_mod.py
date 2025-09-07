@@ -952,7 +952,7 @@ class GWCat(object):
             elif n.find(ev)>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
             elif n.find(ev)>=0:
-                # find the first one it comes to
+                # lsit all, and later find the first one it comes to
                 mapname.append(n)
             # catch for GWTC-3 zenodo filename error
             if n.find(ev.replace('GW200210_092254','GW200210_092255'))>=0 and n.find('Mixed.fits')>=0:
@@ -1011,6 +1011,25 @@ class GWCat(object):
                     'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
             except:
                 print('WARNING: Error extracting {} map {} from tar {}'.format(ev,mapname[0],tarFile))
+                tarF.extract(mapname[0],path=fitsDir)
+                mapFile=os.path.join(fitsDir,mapname[0])
+                if (verbose): print('Extracted Map to {}'.format(mapFile))
+
+                # save location of map to status
+                # save location of h5 file to status
+                stat={'mapurllocal':mapFile,
+                    'mapdatelocal':Time.now().isot,
+                    'mapdatesrc':Time(os.path.getmtime(mapFile),format='unix').isot,
+                    'mapverlocal':self.data[ev]["version"],
+                    'mapversrc':self.data[ev]["version"]}
+                if 'maptarurlsrc' in self.status[ev]:
+                    stat['mapurlsrc']=self.status[ev]['maptarurlsrc']
+                elif 'tarurlsrc' in self.status[ev]:
+                    stat['mapurlsrc']=self.status[ev]['tarurlsrc']
+                self.updateStatus(ev,statusIn=stat,verbose=verbose,desc='map file local')
+                out['map']=mapFile
+                self.addLink(ev,{'url':self.status[ev]["mapurlsrc"],'text':'Sky Map',
+                    'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
                 pass
         else:
             print('no map found for {} in {}'.format(ev,tarFile))
