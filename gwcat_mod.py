@@ -1192,7 +1192,10 @@ class GWCat(object):
                     'type':'skymap-fits-local'})
                 if verbose:print('added map link: {}'.format(fitsFile))
             except:
-                if verbose:print('failed to add map link for {}: '.format(ev,self.status[ev].get('mapurllocal','UNKNOWN')))
+                if verbose:print('failed to add map link for {}: {}'.format(ev,self.status[ev].get('mapurllocal','UNKNOWN')))
+                # fitsFile=self.status[ev]['mapurllocal']
+                # self.addLink(ev,{'url':self.rel2abs(fitsFile,url=self.dataurl),'text':'Sky Map (local mirror)',
+                #     'type':'skymap-fits-local'})
 
         return
 
