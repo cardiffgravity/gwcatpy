@@ -1037,7 +1037,7 @@ class GWCat(object):
                     'type':'skymap-fits','created':self.status[ev]["mapdatesrc"],'filetype':'tar'})
                 pass
         else:
-            print('no map found for {} (approx {}) in {}'.format(ev,tarapproxtarFile))
+            print('no map found for {} (approx {}) in {}'.format(ev,tarapprox,tarFile))
         # return h5file and mapfile locations?
         return out
 
