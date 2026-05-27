@@ -1599,7 +1599,9 @@ class GWCat(object):
                     # plot map
                     if not pp['update']:
                         if verbose: print('skipping plotting {} map. Adding links'.format(pp['linktxt']))
-                        awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"skymap-plot",pp['pngFile'],timenow,"no update"))
+                        if awsLog:
+                            timenow=datetime.datetime.isoformat(datetime.datetime.now(),timespec='seconds')
+                            awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"skymap-plot",pp['pngFile'],timenow,"no update"))
                         # add links
                         # self.addLink(ev,
                         #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
@@ -1619,6 +1621,7 @@ class GWCat(object):
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
                             addCredit=credit,addLogos=logos,border=border,lw=lw,fontsize=fontsize)
                         if awsLog:
+                            timenow=datetime.datetime.isoformat(datetime.datetime.now(),timespec='seconds')
                             awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"skymap-plot",pp['pngFile'],timenow,"new"))
                         # add links
                         # self.addLink(ev,
@@ -2431,7 +2434,9 @@ class GWCat(object):
             #             wfs[ev]['update']=True
         for ev in wfs:
             if not wfs[ev]['update']:
-                awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"waveform-compressed",wfs[ev]['wfFile'],timenow,"no update"))
+                if awsLog:
+                    timenow=datetime.datetime.isoformat(datetime.datetime.now(),timespec='seconds')
+                    awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"waveform-compressed",wfs[ev]['wfFile'],timenow,"no update"))
             m1=wfs[ev]['M1']
             m2=wfs[ev]['M2']
             mch=wfs[ev]['Mchirp']
@@ -2496,7 +2501,7 @@ class GWCat(object):
                 'type':'waveform-compressed','created':Time.now().isot,'offset':float('{:.5f}'.format(-wfs[ev]['t30'])),'tmerge':0.0}
             self.addLink(ev,link)
             if awsLog:
-                timenow=datetime.datetime.isoformat(datetime.datetime.now().timespec='seconds')
+                timenow=datetime.datetime.isoformat(datetime.datetime.now(),timespec='seconds')
                 awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"waveform-compressed",wfs[ev]['wfFile'],timenow,"new"))
         if awsLog:
             awsLogF.close()
