@@ -18,7 +18,7 @@ catlist={'GWTC':{'type':'confident'},
     'GWTC-2.1-auxiliary':{'type':'marginal'},
     'GWTC-3-marginal':{'type':'marginal'},
     'GWTC-4.0':{'type':'confident','zenodo':'16053484'},
-    'GWTC-4.1':{'type':'confident','zenodo':'20275768'},
+    'GWTC-4.1':{'type':'confident','zenodo':'20275769'},
     'GWTC-5.0':{'type':'confident','zenodo':'20291739'}
 }
 
