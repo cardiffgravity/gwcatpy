@@ -7,9 +7,9 @@ import re
 catlist={'GWTC':{'type':'confident'},
     'GWTC-1-confident':{'type':'confident'},
     'GWTC-2':{'type':'confident'},
-    'GWTC-2.1-confident':{'type':'confident','zenodo':'5117703'},
+    'GWTC-2.1-confident':{'type':'confident','zenodo':['5117703']},
     # 'GWTC-2.1-confident':{'type':'confident'},
-    'GWTC-3-confident':{'type':'confident','zenodo':'5546662'},
+    'GWTC-3-confident':{'type':'confident','zenodo':['5546662']},
     'O3_Discovery_Papers':{'type':'confident'},
     'O4_Discovery_Papers':{'type':'confident'},
     'GWTC-1-marginal':{'type':'marginal'},
@@ -17,9 +17,9 @@ catlist={'GWTC':{'type':'confident'},
     'GWTC-2.1-marginal':{'type':'marginal'},
     'GWTC-2.1-auxiliary':{'type':'marginal'},
     'GWTC-3-marginal':{'type':'marginal'},
-    'GWTC-4.0':{'type':'confident','zenodo':'16053484'},
-    'GWTC-4.1':{'type':'confident','zenodo':'20275769'},
-    'GWTC-5.0':{'type':'confident','zenodo':'20291739'}
+    'GWTC-4.0':{'type':'confident','zenodo':['16053484']},
+    'GWTC-4.1':{'type':'confident','zenodo':['20275769']},
+    'GWTC-5.0':{'type':'confident','zenodo':['20348005','20348006']}
 }
 
 def cat2url(cat,devMode=False):
@@ -141,12 +141,23 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                 # (re)download zenodo file list
                 zenFileList=os.path.join(dirOut,'{}_zenodo-filelist.txt'.format(evcat))
                 try:
-                    # download new file
-                    zen.zenodo_get(['--wget={}'.format(zenFileList),catlist[evcat]['zenodo']])
-                    gwtcdata['meta']['zenodoFileList']=zenFileList
-                    fzen=open(zenFileList,'r')
-                    catlist[evcat]['zenFiles']=fzen.readlines()
+                    # download new file(s)
+                    fileList=[]
+                    for z in range(len(catlist[evcat]['zenodo'])):
+                        zenTemp=os.path.join(dirOut,'{}_zenodo-filelist.txt'.format(catlist[evcat]['zenodo'][z]))
+                        zen.zenodo_get(['--wget={}'.format(zenTemp),catlist[evcat]['zenodo'][z]])
+                        zFile=open(zenTemp,'r')
+                        zFileList=zFile.readlines()
+                        if z==0:
+                            fileList=zFileList
+                        else:
+                            fileList.extend(zFileList)
+                        zFile.close()
+                    fzen=open(zenFileList,'w')
+                    fzen.writelines(fileList)
                     fzen.close()
+                    gwtcdata['meta']['zenodoFileList']=zenFileList
+                    catlist[evcat]['zenFiles']=fileList
                     catlist[evcat]['zenodoLoaded']=True
                     if verbose:print('Downloaded {} Zenodo file list from {} to {}'.format(evcat,catlist[evcat]['zenodo'],zenFileList))
                     zenFiles=catlist[evcat]['zenFiles']
