@@ -1366,13 +1366,14 @@ class GWCat(object):
                 url=self.baseurl
         return(url + rel)
 
-    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,updateLink=True,lowSigMaps=False,event=None):
+    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,awsLog=None,updateLink=True,lowSigMaps=False,event=None):
         """Create maps of event localisations in various projections, zooms, styles etc.
         Save links to database.
         Inputs:
             * overwrite [boolean, optional]: set to overwrite all plots. Default=False (only output those needed)
             * verbose [boolean, optional]: set for verbose output. Default=False
             * logFile [string, optional]: set for output to logFile. Default=None (no logging)
+            * awsLog [string, optional]: set for output to AWS log. Default=None (no logging)
             * updateLink [boolean, optional]: set to add/update link even if plot doesn't need making. Default=True
             * lowSigMaps [boolean, optional]: set to plot maps for events marked low significance. Default=False
             * event [string]: set to limit to one single event
@@ -1388,6 +1389,15 @@ class GWCat(object):
                 print("Log file doesn't exist: {}".format(logFile))
             print('Writing Maps log to: {}'.format(logFile))
             logF=open(logFile,'a')
+
+        if awsLog:
+            if os.path.exists(awsLog):
+                os.remove(awsLog)
+                print('Removing AWS log file: {}'.format(awsLog))
+            else:
+                print("AWS log file doesn't exist: {}".format(awsLog))
+            print('Writing Maps AWS log to: {}'.format(awsLog))
+            awsLogF=open(awsLog,'a')
 
         pngDir=os.path.join(self.dataDir,'png/')
         gravDir=os.path.join(self.dataDir,'gravoscope/')
@@ -1589,6 +1599,7 @@ class GWCat(object):
                     # plot map
                     if not pp['update']:
                         if verbose: print('skipping plotting {} map. Adding links'.format(pp['linktxt']))
+                        awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"skymap-plot",pp['pngFile'],timenow,"no update"))
                         # add links
                         # self.addLink(ev,
                         #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
@@ -1607,6 +1618,8 @@ class GWCat(object):
                             pngOut=pp['pngFile'],thumbOut=pp['thumbFile'],
                             plotbounds=plotbounds,plotlabels=plotlabels,plotlines=plotlines,
                             addCredit=credit,addLogos=logos,border=border,lw=lw,fontsize=fontsize)
+                        if awsLog:
+                            awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"skymap-plot",pp['pngFile'],timenow,"new"))
                         # add links
                         # self.addLink(ev,
                         #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
@@ -1708,6 +1721,8 @@ class GWCat(object):
 
         if logFile:
             logF.close()
+        if awsLog:
+            awsLogF.close()
         return
 
     def makeGravoscopeTilesPerl(self,overwrite=False,verbose=False,event=None):
@@ -2336,12 +2351,13 @@ class GWCat(object):
                         self.updateMapSrc(ev,verbose=verbose)
         return
 
-    def makeWaveforms(self,verbose=False,overwrite=False,event=None):
+    def makeWaveforms(self,verbose=False,overwrite=False,event=None,awsLog=None):
         """Create waveforms for events and add to database.
         Inputs:
             * overwrite [boolean, optional]: set to overwrite all waveforms, not just new ones. Default=False
             * verbose [boolean, optional]: set for verbose output. Default=False
             * event [string, optional]: set to process single event. Default=None
+            * awsLog [string, optional]: file to write log of files to upload to AWS. Default=None (no log)
         Outputs:
             * None
         """
@@ -2354,6 +2370,10 @@ class GWCat(object):
         # if logFile:
         #     print('Writing Maps log to: {}'.format(logFile))
         #     logF=open(logFile,'a')
+
+        if awsLog:
+            print('Writing Waveforms AWS log to: {}'.format(awsLog))
+            awsLogF=open(awsLog,'a')
 
         wfDir=os.path.join(self.dataDir,'waveforms')
         wfDirFull=os.path.join(self.dataDir,'waveforms-full')
@@ -2411,7 +2431,7 @@ class GWCat(object):
             #             wfs[ev]['update']=True
         for ev in wfs:
             if not wfs[ev]['update']:
-                continue
+                awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"waveform-compressed",wfs[ev]['wfFile'],timenow,"no update"))
             m1=wfs[ev]['M1']
             m2=wfs[ev]['M2']
             mch=wfs[ev]['Mchirp']
@@ -2475,4 +2495,9 @@ class GWCat(object):
             link={'url':self.rel2abs(wfs[ev]['wfFile'],data=True),'text':linktxt,
                 'type':'waveform-compressed','created':Time.now().isot,'offset':float('{:.5f}'.format(-wfs[ev]['t30'])),'tmerge':0.0}
             self.addLink(ev,link)
+            if awsLog:
+                timenow=datetime.datetime.isoformat(datetime.datetime.now().timespec='seconds')
+                awsLogF.write('{},{},{},{},{}}\n}'.format(ev,"waveform-compressed",wfs[ev]['wfFile'],timenow,"new"))
+        if awsLog:
+            awsLogF.close()
         return
