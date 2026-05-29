@@ -7,9 +7,9 @@ import re
 catlist={'GWTC':{'type':'confident'},
     'GWTC-1-confident':{'type':'confident'},
     'GWTC-2':{'type':'confident'},
-    'GWTC-2.1-confident':{'type':'confident','zenodo':['5117703']},
+    'GWTC-2.1-confident':{'type':'confident','zenodo':['6513631']},
     # 'GWTC-2.1-confident':{'type':'confident'},
-    'GWTC-3-confident':{'type':'confident','zenodo':['5546662']},
+    'GWTC-3-confident':{'type':'confident','zenodo':['8177023']},
     'O3_Discovery_Papers':{'type':'confident'},
     'O4_Discovery_Papers':{'type':'confident'},
     'GWTC-1-marginal':{'type':'marginal'},
@@ -17,7 +17,7 @@ catlist={'GWTC':{'type':'confident'},
     'GWTC-2.1-marginal':{'type':'marginal'},
     'GWTC-2.1-auxiliary':{'type':'marginal'},
     'GWTC-3-marginal':{'type':'marginal'},
-    'GWTC-4.0':{'type':'confident','zenodo':['16053484']},
+    'GWTC-4.0':{'type':'confident','zenodo':['17602505']},
     'GWTC-4.1':{'type':'confident','zenodo':['20275769']},
     'GWTC-5.0':{'type':'confident','zenodo':['20348005','20348006']}
 }
@@ -140,6 +140,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
             if not 'zenFiles' in catlist[evcat]:
                 # (re)download zenodo file list
                 zenFileList=os.path.join(dirOut,'{}_zenodo-filelist.txt'.format(evcat))
+                if verbose:print('Getting zenodo file list for {}:{} from {}'.format(evcat,ev,catlist[evcat]['zenodo']))
                 try:
                     # download new file(s)
                     fileList=[]
@@ -265,7 +266,7 @@ def getGWTC(url='',useLocal=False,verbose=True,export=False,dirOut=None,fileOut=
                         except:
                             print('unable to get zenodo version number from:',zenf)
                         if verbose:print('zenodo data link for {}:{}'.format(ev,zenf))
-                    if zenf.lower().find('skymaps.tar.gz')>=0:
+                    if zenf.lower().find('skymaps.tar.gz')>=0 or zenf.lower().find('localizations.tar.gz')>=0:
                         gwtcdata['data'][ev]['map_link']=zenf.replace('\n','')
                         if verbose:print('map link for {}:{}'.format(ev,zenf))
             if 'strain' in evdata:
