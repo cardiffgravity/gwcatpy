@@ -9,10 +9,37 @@ from matplotlib import cm
 from astropy.io import fits
 from astropy.table import Table, Column
 import astropy_healpix as ah
+import psutil
+import gc
 # print ('plotloc file',__file__,os.path.dirname(__file__))
 # plot.ion()
 
-def read_map(fileIn,verbose=False,force=False,fullout=False):
+class MemoryLimitError(Exception):
+    """Exception raised when memory usage exceeds specified limits"""
+    pass
+
+def _check_memory(max_memory_mb=None, max_memory_percent=None, verbose=False):
+    """Check if memory usage is within limits
+    
+    Raises MemoryLimitError if limits are exceeded
+    """
+    if max_memory_mb is None and max_memory_percent is None:
+        return  # No limits set
+    
+    process = psutil.Process(os.getpid())
+    process_mb = process.memory_info().rss / 1024**2
+    system_percent = psutil.virtual_memory().percent
+    
+    if verbose:
+        print(f'Memory check: Process={process_mb:.2f} MB, System={system_percent:.1f}%')
+    
+    if max_memory_mb is not None and process_mb > max_memory_mb:
+        raise MemoryLimitError(f'Process memory {process_mb:.2f} MB exceeds limit {max_memory_mb} MB')
+    
+    if max_memory_percent is not None and system_percent > max_memory_percent:
+        raise MemoryLimitError(f'System memory {system_percent:.1f}% exceeds limit {max_memory_percent}%')
+
+def read_map(fileIn,verbose=False,force=False,fullout=False,max_memory_mb=None,max_memory_percent=None):
     """Read FITS map and convert to Healpix if required
     Inputs:
         * fileIn [string]: fits filename
@@ -50,7 +77,15 @@ def read_map(fileIn,verbose=False,force=False,fullout=False):
         if not fileRead or force:
             if verbose:
                 print('Converting multiorder map: {}'.format(fileIn))
+            
+            # Check memory before loading file
+            _check_memory(max_memory_mb, max_memory_percent, verbose=verbose)
+            
             skymap=Table.read(fileIn)
+            
+            # Check memory after loading file
+            _check_memory(max_memory_mb, max_memory_percent, verbose=verbose)
+            
             # get pixel number for each map
             level,ipix=ah.uniq_to_level_ipix(skymap['UNIQ'])
             nside=ah.level_to_nside(level)
@@ -59,6 +94,42 @@ def read_map(fileIn,verbose=False,force=False,fullout=False):
             maxns=np.max(nside)
             pixarea=hp.nside2pixarea(maxns)
             npixtot=hp.nside2npix(maxns)
+            
+            # Check if this will create huge maps
+            if verbose:
+                print(f'Creating {len(skymap)} pixels at max nside={maxns} (total pixels: {npixtot})')
+            
+            # Estimate memory requirement
+            estimated_mb = (npixtot * 8 / 1024**2) * 10  # ~10x overhead for processing
+            if verbose:
+                print(f'Estimated memory requirement: {estimated_mb:.1f} MB')
+            
+            # Check if we have enough memory for this operation
+            process = psutil.Process(os.getpid())
+            current_mb = process.memory_info().rss / 1024**2
+            vm = psutil.virtual_memory()
+            total_mb = vm.total / 1024**2
+            current_percent = vm.percent
+            estimated_percent_increase = (estimated_mb / total_mb) * 100
+            projected_percent = current_percent + estimated_percent_increase
+            
+            if verbose:
+                print(f'Proactive check: current={current_mb:.1f} MB ({current_percent:.1f}%), estimated={estimated_mb:.1f} MB (+{estimated_percent_increase:.1f}%), limits={max_memory_mb} MB / {max_memory_percent}%')
+            
+            # Check MB limit
+            if max_memory_mb is not None and (current_mb + estimated_mb) > max_memory_mb:
+                raise MemoryLimitError(
+                    f'Estimated operation would exceed memory limit: '
+                    f'{current_mb:.0f} MB + {estimated_mb:.0f} MB = {current_mb + estimated_mb:.0f} MB > {max_memory_mb} MB'
+                )
+            
+            # Check percentage limit
+            if max_memory_percent is not None and projected_percent > max_memory_percent:
+                raise MemoryLimitError(
+                    f'Estimated operation would exceed system memory limit: '
+                    f'{current_percent:.1f}% + {estimated_percent_increase:.1f}% = {projected_percent:.1f}% > {max_memory_percent}%'
+                )
+            
             # create maps at each level
             for row in skymap:
                 ns=row['NSIDE']
@@ -67,11 +138,23 @@ def read_map(fileIn,verbose=False,force=False,fullout=False):
                 if not nsstr in maps:
                     maps[nsstr]=np.zeros(hp.nside2npix(ns))
                 maps[nsstr][row['IPIX']]=row['PROBDENSITY']*pa
+            
+            # Check memory before expensive reordering
+            _check_memory(max_memory_mb, max_memory_percent, verbose=verbose)
+            
             # reorder maps
             hpmap=np.zeros(npixtot)
-            for n in maps:
+            # Iterate over a list of keys to avoid "dictionary changed size during iteration" error
+            for n in list(maps.keys()):
                 maps_re[n]=hp.ud_grade(maps[n],maxns,order_in='NESTED',order_out='RING',power=-2)
                 hpmap += maps_re[n]
+                # Cleanup as we go
+                del maps[n]
+                gc.collect()
+            
+            # Final memory check
+            _check_memory(max_memory_mb, max_memory_percent, verbose=verbose)
+            
             hp.write_map(fileOut,hpmap,overwrite=True)
             if verbose:
                 print('Writing converted map: {}'.format(fileOut))

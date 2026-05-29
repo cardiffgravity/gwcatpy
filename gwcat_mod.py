@@ -7,6 +7,8 @@ import healpy as hp
 import h5py
 import os
 import requests
+import psutil
+import gc
 from . import gwcat_gwosc as gwosc
 from . import gwcat_gracedb as gracedb
 from . import plotloc
@@ -16,6 +18,128 @@ from pycbc.waveform import get_td_waveform
 import ciecplib
 # import gracedb
 # import gwosc
+
+
+class MemoryLimitError(Exception):
+    """Exception raised when memory usage exceeds the specified limit"""
+    pass
+
+
+def check_memory_limit(max_memory_mb=None, max_memory_percent=None, verbose=False):
+    """Check if current memory usage exceeds limits
+    
+    Inputs:
+        * max_memory_mb [float, optional]: Maximum memory in MB. Default=None (no limit)
+        * max_memory_percent [float, optional]: Maximum memory as percent of total. Default=None (no limit)
+        * verbose [boolean, optional]: set for verbose output. Default=False
+    
+    Returns:
+        * [dict]: Dictionary with 'used_mb', 'percent', 'exceeds_limit' keys
+    
+    Raises:
+        * MemoryLimitError: if memory exceeds either limit
+    """
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    used_mb = mem_info.rss / 1024**2
+    
+    # Get system-wide memory
+    virtual_mem = psutil.virtual_memory()
+    percent = virtual_mem.percent
+    
+    exceeds_limit = False
+    reason = []
+    
+    if max_memory_mb is not None and used_mb > max_memory_mb:
+        exceeds_limit = True
+        reason.append(f"Process memory {used_mb:.2f} MB exceeds limit {max_memory_mb} MB")
+    
+    if max_memory_percent is not None and percent > max_memory_percent:
+        exceeds_limit = True
+        reason.append(f"System memory {percent:.1f}% exceeds limit {max_memory_percent}%")
+    
+    if verbose:
+        print(f"Memory check: Process={used_mb:.2f} MB, System={percent:.1f}%")
+    
+    result = {
+        'used_mb': used_mb,
+        'percent': percent,
+        'exceeds_limit': exceeds_limit,
+        'reason': '; '.join(reason) if reason else None
+    }
+    
+    if exceeds_limit:
+        raise MemoryLimitError('; '.join(reason))
+    
+    return result
+
+
+def memory_safe_operation(func, *args, max_memory_mb=None, max_memory_percent=None, 
+                          cleanup_func=None, verbose=False, **kwargs):
+    """Execute a function with memory limit checking before and after
+    
+    Inputs:
+        * func [callable]: Function to execute
+        * *args: Positional arguments for func
+        * max_memory_mb [float, optional]: Maximum memory in MB. Default=None (no limit)
+        * max_memory_percent [float, optional]: Maximum memory as percent. Default=None (no limit)
+        * cleanup_func [callable, optional]: Function to call for cleanup if memory limit exceeded
+        * verbose [boolean, optional]: set for verbose output. Default=False
+        * **kwargs: Keyword arguments for func
+    
+    Returns:
+        * Result of func or None if memory limit exceeded
+    
+    Raises:
+        * MemoryLimitError: if memory exceeds limits
+    """
+    try:
+        # Check memory before operation
+        if verbose:
+            print(f"Checking memory before {func.__name__}...")
+        check_memory_limit(max_memory_mb, max_memory_percent, verbose=verbose)
+        
+        # Execute function
+        result = func(*args, **kwargs)
+        
+        # Check memory after operation
+        if verbose:
+            print(f"Checking memory after {func.__name__}...")
+        mem_info = check_memory_limit(max_memory_mb, max_memory_percent, verbose=verbose)
+        
+        if verbose:
+            print(f"Operation {func.__name__} completed successfully")
+        
+        return result
+        
+    except MemoryLimitError as e:
+        print(f"MEMORY LIMIT EXCEEDED in {func.__name__}: {str(e)}")
+        
+        # Run cleanup if provided
+        if cleanup_func:
+            if verbose:
+                print("Running cleanup function...")
+            try:
+                cleanup_func()
+            except Exception as cleanup_error:
+                print(f"Error during cleanup: {cleanup_error}")
+        
+        # Force garbage collection
+        if verbose:
+            print("Forcing garbage collection...")
+        gc.collect()
+        
+        # Re-raise the exception
+        raise
+    
+    except Exception as e:
+        print(f"Error in {func.__name__}: {str(e)}")
+        if cleanup_func:
+            try:
+                cleanup_func()
+            except:
+                pass
+        raise
 
 def json2jsonp(fileIn,fileOut=None,verbose=False):
     """Read Json file and convert to Jsonp
@@ -181,7 +305,8 @@ class GWCat(object):
     """Cataloge object containing useful methods for editing and accessing
     """
     def __init__(self,fileIn='../data/events.json',statusFile='status.json',
-        dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',dataurl='https://ligo.gravity.cf.ac.uk/~chris.north/gwcat-data/',verbose=False,mode='public'):
+        dataDir='data/',baseurl='https://data.cardiffgravity.org/gwcat-data/',dataurl='https://ligo.gravity.cf.ac.uk/~chris.north/gwcat-data/',verbose=False,mode='public',
+        max_memory_mb=None,max_memory_percent=None,skip_on_memory_error=True):
         """Initialise catalogue from input file and set basic parameters
         Inputs:
             * fileIn [string, optional]: filename to load from. Default=../data/events.json
@@ -191,6 +316,9 @@ class GWCat(object):
             * dataurl [string, optional]: URL to use for absolute URLs for data files. Default='https://ligo.gravity.cf.ac.uk/~chris.north/gwcat-data/
             * verbose [boolean, optional]: set for verbose output. Default=False
             * mode [string, optional]: mode. Default=public
+            * max_memory_mb [float, optional]: Maximum memory in MB before aborting operations. Default=None (no limit)
+            * max_memory_percent [float, optional]: Maximum system memory percent before aborting. Default=None (no limit)
+            * skip_on_memory_error [boolean, optional]: Skip events on memory error instead of crashing. Default=True
         Outputs:
             * None
         """
@@ -202,6 +330,11 @@ class GWCat(object):
         self.baseurl=baseurl
         self.dataurl=dataurl
         self.statusFile=os.path.join(dataDir,statusFile)
+
+        # Memory limit settings
+        self.max_memory_mb=max_memory_mb
+        self.max_memory_percent=max_memory_percent
+        self.skip_on_memory_error=skip_on_memory_error
 
         self.mode=mode
         if mode=='dev':
@@ -938,12 +1071,20 @@ class GWCat(object):
         if len(h5name)>0:
             h5name=h5name[0]
         mapname=[]
+        tarNamesMaps=[n for n in tarNames if ev in n]
         mapfound=False
         if 'approximant' in self.status[ev]:
             tarapprox=self.status[ev]['approximant'].replace('C00:','').replace('C01:','')
+        elif 'approximant' in self.data[ev]:
+            tarapprox=self.data[ev]['approximant'].replace('C00:','').replace('C01:','')
         else:
             tarapprox='###NONE###'
-        for n in tarNames:
+        if verbose:
+            if len(tarNamesMaps)>8:
+                print('looking for map for {} with approx {} from {} maps'.format(ev,tarapprox,len(tarNamesMaps)))
+            else:
+                print('looking for map for {} with approx {} from {}'.format(ev,tarapprox,tarNamesMaps))
+        for n in tarNamesMaps:
             # GWTC-2 filename
             if n.find('PublicationSamples.fits')>=0:
                 # for GWTC-2
@@ -956,7 +1097,11 @@ class GWCat(object):
             elif n.find(ev)>=0 and n.find('Mixed.fits')>=0:
                 mapname.append(n)
                 mapfound=True
-            elif n.find(ev)>=0 and mapfound==False:
+            # GWTC-4.1 filename
+            elif n.find(ev)>=0 and n.find('Mixed')>=0 and n.find('PEDataRelease.fits')>=0:
+                mapname.append(n)
+                mapfound=True
+            elif n.find(ev)>=0 and n.find('.fits')>=0 and mapfound==False:
                 # lsit all, and later find the first one it comes to!
                 mapname.append(n)
             # catch for GWTC-3 zenodo filename error
@@ -1158,13 +1303,32 @@ class GWCat(object):
             * None
         """
         print('*** Updating maps...')
+        
+        # Start memory monitoring
+        process = psutil.Process(os.getpid())
+        mem_start = process.memory_info().rss / 1024**2  # MB
+        print(f'Starting memory usage: {mem_start:.2f} MB')
+        
         for ev in self.data:
             if event!="" and event!=None:
                 if ev!=event:
                     continue
                 else:
                     if verbose: print("***UPDATING MAPS FOR SINGLE EVENT {}".format(ev))
-            if verbose: print('Checking map status for {}'.format(ev))
+            
+            # Check memory before processing this event
+            try:
+                check_memory_limit(self.max_memory_mb, self.max_memory_percent, verbose=verbose)
+            except MemoryLimitError as mem_err:
+                print(f'MEMORY LIMIT EXCEEDED before processing {ev}: {str(mem_err)}')
+                if self.skip_on_memory_error:
+                    print(f'Skipping {ev} due to memory limit')
+                    gc.collect()  # Force cleanup before continuing
+                    continue
+                else:
+                    raise
+            
+            if verbose: print('\nChecking map status for {}'.format(ev))
             # compare map creation dates
             try:
                 if 'mapdatelocal' in self.status[ev] and 'mapdatesrc' in self.status[ev]:
@@ -1210,23 +1374,61 @@ class GWCat(object):
                 # if verbose:print('{} status: {}'.format(ev,self.status[ev]))
                 self.getMap(ev,verbose=verbose)
                 if verbose:print('Updating map for {}'.format(ev))
+                
+                # Monitor memory before calcAreas
+                mem_before = process.memory_info().rss / 1024**2  # MB
+                if verbose: print(f'[{ev}] System memory before calcAreas: {mem_before:.2f} MB')
+                
                 self.calcAreas(ev,verbose=verbose)
+                
+                # Monitor memory after calcAreas
+                mem_after = process.memory_info().rss / 1024**2  # MB
+                if verbose: print(f'[{ev}] System memory after calcAreas: {mem_after:.2f} MB (diff: {mem_after - mem_before:.2f} MB)')
+                gc.collect()  # Force garbage collection
+                mem_after_gc = process.memory_info().rss / 1024**2  # MB
+                if verbose: print(f'[{ev}] System memory after gc.collect(): {mem_after_gc:.2f} MB (freed: {mem_after - mem_after_gc:.2f} MB)')
             else:
                 if verbose:print('No map update required for {}'.format(ev))
                 if not 'deltaOmega' in self.data[ev]:
                     if verbose:print('recalculating area')
+                    
+                    # Monitor memory before calcAreas
+                    mem_before = process.memory_info().rss / 1024**2  # MB
+                    if verbose: print(f'[{ev}] System memory before calcAreas: {mem_before:.2f} MB')
+                    
                     self.calcAreas(ev,verbose=verbose)
+                    
+                    # Monitor memory after calcAreas
+                    mem_after = process.memory_info().rss / 1024**2  # MB
+                    if verbose: print(f'[{ev}] System memory after calcAreas: {mem_after:.2f} MB (diff: {mem_after - mem_before:.2f} MB)')
+                    gc.collect()  # Force garbage collection
+                    mem_after_gc = process.memory_info().rss / 1024**2  # MB
+                    if verbose: print(f'[{ev}] System memory after gc.collect(): {mem_after_gc:.2f} MB (freed: {mem_after - mem_after_gc:.2f} MB)')
             try:
                 fitsFile=self.status[ev]['mapurllocal']
-                self.addLink(ev,{'url':self.rel2abs(fitsFile,url=self.dataurl),'text':'Sky Map (local mirror)',
-                    'type':'skymap-fits-local'})
-                if verbose:print('added map link: {}'.format(fitsFile))
+                # self.addLink(ev,{'url':self.rel2abs(fitsFile,url=self.dataurl),'text':'Sky Map (local mirror)',
+                #     'type':'skymap-fits-local'})
+                # if verbose:print('added map link: {}'.format(fitsFile))
             except:
-                if verbose:print('failed to add map link for {}: {}'.format(ev,self.status[ev].get('mapurllocal','UNKNOWN')))
+                if ev in self.status:
+                    if verbose:print('failed to add map link for {}: {}'.format(ev,self.status[ev].get('mapurllocal','UNKNOWN')))
+                else:
+                    if verbose:print('failed to add map link for {}'.format(ev))
                 # fitsFile=self.status[ev]['mapurllocal']
                 # self.addLink(ev,{'url':self.rel2abs(fitsFile,url=self.dataurl),'text':'Sky Map (local mirror)',
                 #     'type':'skymap-fits-local'})
-
+            
+            # Aggressive cleanup after each event to prevent memory accumulation
+            gc.collect()
+            if verbose:
+                mem_current = process.memory_info().rss / 1024**2
+                print(f'[{ev}] Completed. Current memory: {mem_current:.2f} MB')
+        
+        # Final memory report
+        mem_final = process.memory_info().rss / 1024**2  # MB
+        mem_growth = mem_final - mem_start
+        print(f'Final system memory usage: {mem_final:.2f} MB (growth: {mem_growth:.2f} MB, {mem_growth/mem_start*100:.1f}%)')
+        
         return
 
     def getMap(self,ev,verbose=False):
@@ -1238,6 +1440,10 @@ class GWCat(object):
         Outputs:
             * [object] FITS header or HTTP status code if unsuccessful
         """
+        if not "DL" in self.data[ev]:
+            if verbose: 
+                print('WARNING: no DL info for {}. Skipping map extraction.'.format(ev))
+            return
         fitsDir=os.path.join(self.dataDir,'fits')
         if not os.path.exists(fitsDir):
             # create directory
@@ -1248,7 +1454,7 @@ class GWCat(object):
             if verbose: print('ERROR: no skymap link for {}',format(ev))
             return
         if len(lmap)>1:
-            if verbose: print('WARNING: more than one skymap link for {}',format(ev))
+            if verbose: print('WARNING: more than one skymap link for {}'.format(ev))
         url=lmap[0]['url']
         if verbose: print('Downloading skymap for {} from {}'.format(ev,url))
         if url.find("zenodo")>=0 and url.find("content")>=0:
@@ -1261,7 +1467,7 @@ class GWCat(object):
                 srcfile=os.path.split(url)[-1]
         else:
             srcfile=os.path.split(url)[-1]
-        if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.lower().find('skymaps.tar.gz')<0:
+        if srcfile.find(ev)<0 and srcfile.find('zenodo')<0 and srcfile.lower().find('skymaps.tar.gz')<0 and srcfile.lower().find('localizations.tar.gz')<0:
             # if not zenodo file or skymaps compilation add event name to filename
             fitsFile=os.path.join(fitsDir,'{}_{}'.format(ev,srcfile))
             if fitsFile.find('.fits')<0:
@@ -1289,7 +1495,7 @@ class GWCat(object):
                     print('ERROR: Problem loading map:',mapreq.status_code)
                     return mapreq.status_code
 
-        if lmap[0].get('filetype','')=='tar':
+        if lmap[0].get('filetype','')=='tar':    
             print('NEED TO EXTRACT TARBALL')
             stat={'maptarurllocal':fitsFile,
                 'maptarurlsrc':url,
@@ -1304,6 +1510,7 @@ class GWCat(object):
                     fitsFile=tarout['map']
                 except:
                     print('problem reading maptarurllocal file: {}'.format(self.status[ev]['maptarurllocal']))
+                    tarout=self.extractTar(ev,statusid='maptarurllocal',maponly=True,verbose=verbose)
             elif 'tarurllocal' in self.status[ev]:
                 try:
                     tarout=self.extractTar(ev,statusid='tarurllocal',maponly=True,verbose=verbose)
@@ -1337,19 +1544,99 @@ class GWCat(object):
         Outputs:
             * [object] 90% likelihood area (in degree^2)
         """
-        if 'mapurllocal' in self.status[ev]:
-            fitsFile=self.status[ev]['mapurllocal']
-            map=plotloc.read_map(fitsFile,verbose=verbose)
+        map = None
+        totmap = None
+        
+        try:
+            if 'mapurllocal' in self.status[ev]:
+                fitsFile=self.status[ev]['mapurllocal']
+                
+                # Check memory before loading map
+                try:
+                    check_memory_limit(self.max_memory_mb, self.max_memory_percent, verbose=verbose)
+                except MemoryLimitError as mem_err:
+                    print(f'MEMORY LIMIT EXCEEDED before loading map for {ev}: {str(mem_err)}')
+                    if not self.skip_on_memory_error:
+                        raise
+                    return None
+                
+                # Load map with memory monitoring
+                if verbose:
+                    print(f'Loading map for {ev}...')
+                map=plotloc.read_map(fitsFile, verbose=verbose, 
+                                     max_memory_mb=self.max_memory_mb, 
+                                     max_memory_percent=self.max_memory_percent)
+                
+                # Check memory after loading map
+                try:
+                    check_memory_limit(self.max_memory_mb, self.max_memory_percent, verbose=verbose)
+                except MemoryLimitError as mem_err:
+                    print(f'MEMORY LIMIT EXCEEDED after loading map for {ev}: {str(mem_err)}')
+                    # Clean up
+                    del map
+                    gc.collect()
+                    if not self.skip_on_memory_error:
+                        raise
+                    return None
 
-            totmap,a90=plotloc.getProbMap(map,prob=0.9,verbose=verbose)
-            a50=plotloc.getArea(totmap,0.5,verbose=verbose)
-            self.data[ev]['deltaOmega']={'best':round(a90)}
-            self.data[ev]['skyarea(50)']={'best':round(a50)}
-            if verbose:print('90% area',round(a90),'50% area',round(a50))
-            return(a90)
-            # except:
-            #     print('WARNING: Problem calculating area for {}'.format(ev))
-                # return
+                totmap,a90=plotloc.getProbMap(map,prob=0.9,verbose=verbose)
+                a50=plotloc.getArea(totmap,0.5,verbose=verbose)
+                self.data[ev]['deltaOmega']={'best':round(a90)}
+                self.data[ev]['skyarea(50)']={'best':round(a50)}
+                if verbose:print('90% area',round(a90),'50% area',round(a50))
+                
+                # Clean up large objects
+                del map, totmap
+                gc.collect()
+                
+                return(a90)
+                
+        except MemoryLimitError as mem_err:
+            print(f'MEMORY LIMIT EXCEEDED for {ev}: {str(mem_err)}')
+            # Clean up
+            try:
+                del map
+            except:
+                pass
+            try:
+                del totmap
+            except:
+                pass
+            gc.collect()
+            if not self.skip_on_memory_error:
+                raise
+            return None
+            
+        except Exception as e:
+            # Check if it's a MemoryLimitError from plotloc module
+            if type(e).__name__ == 'MemoryLimitError':
+                print(f'MEMORY LIMIT EXCEEDED for {ev}: {str(e)}')
+                # Clean up
+                try:
+                    del map
+                except:
+                    pass
+                try:
+                    del totmap
+                except:
+                    pass
+                gc.collect()
+                if not self.skip_on_memory_error:
+                    raise
+                return None
+            
+            print('WARNING: Problem calculating area for {}: {}'.format(ev, str(e)))
+            # Clean up on error
+            try:
+                del map
+            except:
+                pass
+            try:
+                del totmap
+            except:
+                pass
+            gc.collect()
+            return None
 
     def rel2abs(self,rel,data=False,url=None):
         """Convert relative to absolute URL (for links)
@@ -1450,8 +1737,6 @@ class GWCat(object):
                 'moll_rot':{'linktxt':'Skymap (Mollweide fullsky, rotated)'},
                 'cart_rot':{'linktxt':'Skymap (Cartesian fullsky, rotated)'}
             }
-            imgs={}
-            thumbs={}
             nUpdate=0
             nUpdateLinks=0
             for p in plots:
@@ -1472,16 +1757,14 @@ class GWCat(object):
                 else:
                     nUpdateLinks+=1
                 if plots[p]['update']: nUpdate+=1
-                imgs[p]={'file':plots[p]['pngFileOnly'],'text':plots[p]['linktxt']}
-                thumbs[p]={'file':plots[p]['thumbFileOnly'],'text':plots[p]['linktxt']}
 
             if nUpdate==0:
                 if verbose:print('all plots exist for {}'.format(ev))
                 mapread=False
                 if nUpdateLinks>0 or updateLink:
                     if verbose: print('skipping plotting {} maps. Adding links'.format(ev))
-                    for p in plots:
-                        pp=plots[p]
+                    # for p in plots:
+                    #     pp=plots[p]
                         # add links
                         # self.addLink(ev,
                         #     {'url':self.rel2abs(pp['pngFile']),'text':pp['linktxt'],
@@ -1491,14 +1774,15 @@ class GWCat(object):
                         #     {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
                         #     'file':pp['thumbFile'],'url-loc':'skymap-base-url',
                         #     'type':'skymap-thumbnail','created':Time.now().isot})
+                    imglist=plots.keys().tolist()
                     self.addLink(ev,
-                        {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                        {'url':'%BASEURL%','text':'Skymaps',
                         'type':'skymaps-plot','created':Time.now().isot,
-                        'files':imgs})
+                        'files':imglist})
                     self.addLink(ev,
-                        {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                        {'url':'%BASEURL%','text':'Skymaps',
                         'type':'skymaps-thumb','created':Time.now().isot,
-                        'files':thumbs})
+                        'files':imglist})
             else:
                 try:
                     map=plotloc.read_map(filename,verbose=verbose)
@@ -1508,6 +1792,7 @@ class GWCat(object):
                     return
                 if logFile:
                     logF.write(ev+'\n')
+                imglist=[]
                 for p in plots:
                     pp=plots[p]
                     # set defaults
@@ -1632,19 +1917,21 @@ class GWCat(object):
                         #     {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
                         #     'file':pp['thumbFile'],'url-loc':'skymap-base-url',
                         #     'type':'skymap-thumbnail','created':Time.now().isot})
+                    imglist.append(p)
                 self.addLink(ev,
-                    {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                    {'url':'%BASEURL%','text':'Skymaps',
                     'type':'skymaps-plot','created':Time.now().isot,
-                    'files':imgs})
+                    'files':imglist})
                 self.addLink(ev,
-                    {'url':self.rel2abs(pngDir),'text':'Skymaps',
+                    {'url':'%BASEURL%','text':'Skymaps',
                     'type':'skymaps-thumb','created':Time.now().isot,
-                    'files':thumbs})
+                    'files':imglist})
 
             gravs={'gal_8192':{'text':'Skymap (no annotations)'},
                 'eq_8192':{'text':'Skymap (Equatorial, no annotations)'},
                 'eq_4096':{'text':'Skymap 4096px (Equatorial, no annotations)'}
             }
+            gravimgs=gravs.keys().tolist()
             res=8
             gravNpix=int(res*1024)
             updateGrav=False
@@ -1664,10 +1951,10 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFile,verbose=verbose,res=res)
-                self.addLink(ev,
-                    {'url':self.rel2abs(gravFile),'text':gravs['gal_8192']['text'],
-                    'file':gravFile,'url-loc':'skymap-base-url',
-                    'type':'skymap-plain','created':Time.now().isot})
+                # self.addLink(ev,
+                #     {'url':self.rel2abs(gravFile),'text':gravs['gal_8192']['text'],
+                #     'file':gravFile,'url-loc':'skymap-base-url',
+                #     'type':'skymap-plain','created':Time.now().isot})
 
             updateGravEq=False
             gravFileOnlyEq='{}_{}_eq.png'.format(ev,gravNpix)
@@ -1686,10 +1973,10 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial) for {} ({}x{})'.format(ev,gravNpix,int(gravNpix/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq,verbose=verbose,res=res,coord='C')
-                self.addLink(ev,
-                    {'url':self.rel2abs(gravFileEq),'text':gravs['eq_8192']['text'],
-                    'file':gravFileEq,'url-loc':'skymap-base-url',
-                    'type':'skymaps-plain','created':Time.now().isot})
+                # self.addLink(ev,
+                #     {'url':self.rel2abs(gravFileEq),'text':gravs['eq_8192']['text'],
+                #     'file':gravFileEq,'url-loc':'skymap-base-url',
+                #     'type':'skymaps-plain','created':Time.now().isot})
 
             res4096=4
             gravNpix4096=int(res4096*1024)
@@ -1710,17 +1997,17 @@ class GWCat(object):
                 if verbose:
                     print('plotting Gravoscope (Equatorial, 4096) for {} ({}x{})'.format(ev,gravNpix4096,int(gravNpix4096/2)))
                 plotloc.plotGravoscope(mapIn=map,pngOut=gravFileEq4096,verbose=verbose,res=res4096,coord='C')
-                self.addLink(ev,
-                    {'url':self.rel2abs(gravFileEq4096),'text':gravs['eq_4096']['text'],
-                    'file':gravFileEq4096,'url-loc':'skymap-base-url',
-                    'type':'skymap-plain','created':Time.now().isot})
+                # self.addLink(ev,
+                #     {'url':self.rel2abs(gravFileEq4096),'text':gravs['eq_4096']['text'],
+                #     'file':gravFileEq4096,'url-loc':'skymap-base-url',
+                #     'type':'skymap-plain','created':Time.now().isot})
             # self.addLink(ev,
             #     {'url':self.rel2abs(''),'text':'Skymap base url',
             #     'type':'skymap-base-url','created':Time.now().isot})
             self.addLink(ev,
-                {'url':self.rel2abs(gravDir,data=True),'text':'Skymaps (plain)',
+                {'url':'%BASEURL%','text':'Skymaps (plain)',
                 'type':'skymaps-plain','created':Time.now().isot,
-                'files':gravs})
+                'files':gravimgs})
 
         if logFile:
             logF.close()
