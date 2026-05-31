@@ -790,7 +790,7 @@ class GWCat(object):
             except:
                 print('WARNING: Error loading data file for {}:'.format(ev),l)
 
-    def updateH5(self,verbose=False,forceUpdate=False,forceUpdateData=False,replace=False,event=None):
+    def updateH5(self,verbose=False,forceUpdate=False,forceUpdateData=False,replace=False,event=None,catalog=None):
         """Check whether H5 files need updating and re-download if necessary (using getH5 or getH5Local).
         Update parameters from H5 files.
         Inputs:
@@ -799,6 +799,8 @@ class GWCat(object):
             * replace [boolean, optional]: set to replace existing parameters with H5. Default=False
             * forceUpdate [boolean, optional]: set to download all files. Default=False (only download updated files)
             * forceUpdateData [boolean, optional]: set to force update of all data. Default=False (only download updated files)
+            * event [string, optional]: set to only update for single event. Default=None (update all events)
+            * catalog [string, optional]: set to only update for events in catalog. Default=None (update all events)
         Outputs:
             * None
         """
@@ -811,6 +813,11 @@ class GWCat(object):
                     continue
                 else:
                     if verbose: print("***PROCESSING H5 FOR SINGLE EVENT {}".format(ev))
+            if catalog!="" and catalog!=None:
+                if self.data[ev].get('catalog')!=catalog:
+                    continue
+                else:
+                    if verbose: print("***PROCESSING H5 FOR CATALOG {} EVENT {}".format(catalog,ev))
             try:
                 if not ev in self.status:
                     self.status[ev]={}
@@ -1292,13 +1299,15 @@ class GWCat(object):
                 self.links.pop(remev)
         return
 
-    def updateMaps(self,verbose=False,forceUpdate=False,event=None):
+    def updateMaps(self,verbose=False,forceUpdate=False,event=None,catalog=None):
         """Check whether map files need updating and re-download if necessary (using getMap).
         Update 90% area.
         Inputs:
             * ev [string]: event name
             * verbose [boolean, optional]: set for verbose output. Default=False
             * forceUpdate [boolean, optional]: set to download all files. Default=False (only download updated files)
+            * event [string, optional]: set to update only a single event. Default=None (update all events)
+            * catalog [string, optional]: set to update only events from a single catalog. Default=None (update all events)
         Outputs:
             * None
         """
@@ -1315,7 +1324,11 @@ class GWCat(object):
                     continue
                 else:
                     if verbose: print("***UPDATING MAPS FOR SINGLE EVENT {}".format(ev))
-            
+            if catalog!="" and catalog!=None:
+                if self.data[ev].get('catalog')!=catalog:
+                    continue
+                else:
+                    if verbose: print("***PLOTTING MAPS FOR CATALOG {} EVENT {}".format(catalog,ev))
             # Check memory before processing this event
             try:
                 check_memory_limit(self.max_memory_mb, self.max_memory_percent, verbose=verbose)
@@ -1653,7 +1666,7 @@ class GWCat(object):
                 url=self.baseurl
         return(url + rel)
 
-    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,awsLog=None,updateLink=True,lowSigMaps=False,event=None):
+    def plotMapPngs(self,overwrite=False,verbose=False,logFile=None,awsLog=None,updateLink=True,lowSigMaps=False,event=None,catalog=None):
         """Create maps of event localisations in various projections, zooms, styles etc.
         Save links to database.
         Inputs:
@@ -1664,6 +1677,7 @@ class GWCat(object):
             * updateLink [boolean, optional]: set to add/update link even if plot doesn't need making. Default=True
             * lowSigMaps [boolean, optional]: set to plot maps for events marked low significance. Default=False
             * event [string]: set to limit to one single event
+            * catalog [string]: set to limit to events in a specific catalog
         Outputs:
             * None
         """
@@ -1700,6 +1714,11 @@ class GWCat(object):
                     continue
                 else:
                     if verbose: print("***PLOTTING MAPS FOR SINGLE EVENT {}".format(ev))
+            if catalog!="" and catalog!=None:
+                if self.data[ev].get('catalog')!=catalog:
+                    continue
+                else:
+                    if verbose: print("***PLOTTING MAPS FOR CATALOG {} EVENT {}".format(catalog,ev))
             print('plotting {}'.format(ev))
             # if not 'mapurlsrc' in self.status[ev]:
             #     if verbose:
@@ -2049,7 +2068,7 @@ class GWCat(object):
                     plotloc.makeTiles(gravFile,verbose=verbose)
         return
 
-    def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False,tilesurl=None,updateLink=True):
+    def makeGravoscopeTiles(self,maxres=3,overwrite=False,verbose=False,tilesurl=None,updateLink=True,event=None,catalog=None):
         """Create tile-sets of event localisation maps using perl script for use with Gravoscope.
         Save links to database.
         Inputs:
@@ -2057,11 +2076,23 @@ class GWCat(object):
             * verbose [boolean, optional]: set for verbose output. Default=False
             * tilesurl [string, optional]: base URL for tilesets. Default=None (uses self.baseurl)
             * updateLink [boolean, optional]: set to update link (regardless of whether tiles are created). Default=True
+            * event [string, optional]: set to plot for single event. Default=None
+            * catalog [string, optional]: set to limit to events in a specific catalog. Default=None
         Outputs:
             * None
         """
         gravDir=os.path.join(self.dataDir,'gravoscope')
         for ev in self.events:
+            if event!="" and event!=None:
+                if ev!=event:
+                    continue
+                else:
+                    if verbose: print("***PLOTTING MAPS FOR SINGLE EVENT {}".format(ev))
+            if catalog!="" and catalog!=None:
+                if self.data[ev].get('catalog')!=catalog:
+                    continue
+                else:
+                    if verbose: print("***PLOTTING MAPS FOR CATALOG {} EVENT {}".format(catalog,ev))
             tilesDir=os.path.join(gravDir,'{}-tiles'.format(ev))
             if not os.path.exists(tilesDir):
                 os.mkdir(tilesDir)
@@ -2641,12 +2672,13 @@ class GWCat(object):
                         self.updateMapSrc(ev,verbose=verbose)
         return
 
-    def makeWaveforms(self,verbose=False,overwrite=False,event=None,awsLog=None):
+    def makeWaveforms(self,verbose=False,overwrite=False,event=None,catalog=None,awsLog=None):
         """Create waveforms for events and add to database.
         Inputs:
             * overwrite [boolean, optional]: set to overwrite all waveforms, not just new ones. Default=False
             * verbose [boolean, optional]: set for verbose output. Default=False
             * event [string, optional]: set to process single event. Default=None
+            * catalog [string, optional]: set to limit to events in a specific catalog. Default=None
             * awsLog [string, optional]: file to write log of files to upload to AWS. Default=None (no log)
         Outputs:
             * None
@@ -2678,6 +2710,11 @@ class GWCat(object):
                     continue
                 else:
                     if verbose: print("CALCULATING WAVEFORM FOR SINGLE EVENT {}".format(ev))
+            if catalog!="" and catalog!=None:
+                if self.data[ev].get('catalog')!=catalog:
+                    continue
+                else:
+                    if verbose: print("***PLOTTING MAPS FOR CATALOG {} EVENT {}".format(catalog,ev))
             # check parameters exist
             M1Param=self.getParameter(ev,'M1')
             M2Param=self.getParameter(ev,'M2')
