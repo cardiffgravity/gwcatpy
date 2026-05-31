@@ -1774,7 +1774,7 @@ class GWCat(object):
                         #     {'url':self.rel2abs(pp['thumbFile']),'text':pp['linktxt'],
                         #     'file':pp['thumbFile'],'url-loc':'skymap-base-url',
                         #     'type':'skymap-thumbnail','created':Time.now().isot})
-                    imglist=plots.keys().tolist()
+                    imglist=list(plots.keys())
                     self.addLink(ev,
                         {'url':'%BASEURL%','text':'Skymaps',
                         'type':'skymaps-plot','created':Time.now().isot,
@@ -1931,7 +1931,7 @@ class GWCat(object):
                 'eq_8192':{'text':'Skymap (Equatorial, no annotations)'},
                 'eq_4096':{'text':'Skymap 4096px (Equatorial, no annotations)'}
             }
-            gravimgs=gravs.keys().tolist()
+            gravimgs=list(gravs.keys())
             res=8
             gravNpix=int(res*1024)
             updateGrav=False
